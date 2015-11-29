@@ -161,11 +161,11 @@ class ICalendarRemoteSchedule extends SimpleNode {
         next = state.getNext();
         if (next != null) {
           link.val("${path}/next", next.value);
-          link.val("${path}/next_ts", next.time.toString());
+          link.val("${path}/next_ts", next.time.toIso8601String());
           nextTimestamp = next.time;
         } else {
           link.val("${path}/next", defaultValue);
-          link.val("${path}/next_ts", v.endsAt.toString());
+          link.val("${path}/next_ts", v.endsAt.toIso8601String());
           nextTimestamp = v.endsAt;
         }
       });
