@@ -1,0 +1,6 @@
+name: dslink_schedule
+description: Schedule DSLink
+dependencies:
+  dslink:
+    git: https://github.com/IOT-DSA/sdk-dslink-dart.git
+  http: ">=0.11.2 <0.12.0"
