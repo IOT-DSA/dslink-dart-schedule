@@ -120,6 +120,8 @@ class ICalendarRemoteSchedule extends SimpleNode {
     }
   }
 
+  String _lastContent;
+
   loadSchedule([String content]) async {
     logger.fine("Schedule '${displayName}': Loading Schedule");
 
@@ -202,6 +204,8 @@ class ICalendarRemoteSchedule extends SimpleNode {
         link.addNode("${path}/events/${i}", map);
       }
 
+      _lastContent = content;
+
       if (httpTimer == null) {
         httpTimer = Scheduler.safeEvery(new Interval.forSeconds(10), () async {
           logger.fine("Schedule '${displayName}': Checking for Schedule Update");
@@ -213,12 +217,17 @@ class ICalendarRemoteSchedule extends SimpleNode {
             return;
           }
 
-          String oldContent = content;
-          content = response.body;
+          var content = response.body;
 
-          if (oldContent != content) {
-            logger.fine("Schedule '${displayName}': Updating Schedule");
-            await loadSchedule(content);
+          if (_lastContent != content) {
+            var lastLines = _lastContent.split("\n");
+            var lines = content.split("\n");
+            lastLines.removeWhere((x) => x.startsWith("DTSTAMP:"));
+            lines.removeWhere((x) => x.startsWith("DTSTAMP:"));
+            if (lastLines.join("\n") != lines.join("\n")) {
+              logger.info("Schedule '${displayName}': Updating Schedule");
+              await loadSchedule(content);
+            }
           } else {
             logger.fine("Schedule '${displayName}': Schedule Up-To-Date");
           }
