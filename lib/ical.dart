@@ -267,6 +267,7 @@ class Rule extends IterableBase {
   List<int> bySetPos = [];
   List<int> byHour = [];
   List<int> byMinute = [];
+  List<int> bySecond = [];
 
   Rule(this.frequency);
 
@@ -357,6 +358,12 @@ class RuleTimeIterator extends Iterator<EventTiming> {
       }
     }
 
+    if (rule.bySecond.isNotEmpty) {
+      while (space != null && !rule.bySecond.contains(space.time.second)) {
+        space = _next(space);
+      }
+    }
+
     if (rule.bySetPos.isNotEmpty) {
       while (space != null && !rule.bySetPos.contains(i)) {
         space = _next(space);
@@ -441,6 +448,11 @@ List<Event> loadEvents(String input) {
   var tokens = tokenizeCalendar(input);
   var root = parseCalendarObjects(tokens);
   var vevents = root.properties["VEVENT"];
+
+  if (vevents == null) {
+    vevents = [];
+  }
+
   var events = <Event>[];
   for (CalendarObject x in vevents) {
     var summary = x.properties["SUMMARY"];
@@ -448,6 +460,13 @@ List<Event> loadEvents(String input) {
     var start = x.properties["DTSTART"];
     var end = x.properties["DTEND"];
     var rrule = x.properties["RRULE"];
+
+    if (rrule == null) {
+      rrule = {
+        "FREQ": "DAILY",
+        "UNTIL": end
+      };
+    }
 
     var e = new Event();
     e.summary = summary;
@@ -525,12 +544,47 @@ class Event {
       rule.until = rrule["UNTIL"];
     }
 
-    if (rrule["BYSETPOS"] is num) {
-      rule.bySetPos.add(rrule["BYSETPOS"]);
+    var bySetPos = rrule["BYSETPOS"];
+    var byWeekday = rrule["BYDAY"];
+    var byMonth = rrule["BYMONTH"];
+    var byMinute = rrule["BYMINUTE"];
+    var byHour = rrule["BYHOUR"];
+    var bySecond = rrule["BYSECOND"];
+
+    void addToList(List a, b) {
+      if (b is List) {
+        a.addAll(b);
+      } else {
+        a.add(b);
+      }
+    }
+
+    if (bySetPos is num || bySetPos is List) {
+      addToList(rule.bySetPos, bySetPos);
+    }
+
+    if (byMonth is num || byMonth is List) {
+      addToList(rule.byMonth, byMonth);
+    }
+
+    if (byHour is num || byHour is List) {
+      addToList(rule.byHour, byHour);
+    }
+
+    if (byMinute is num || byMinute is List) {
+      addToList(rule.byMinute, byMinute);
+    }
+
+    if (bySecond is num || bySecond is List) {
+      addToList(rule.bySecond, bySecond);
     }
 
     if (rrule["INTERVAL"] is num) {
       rule.interval = rrule["INTERVAL"].toInt();
+    }
+
+    if (rrule["COUNT"] is num) {
+      rule.count = rrule["COUNT"].toInt();
     }
 
     rule.start = start;
