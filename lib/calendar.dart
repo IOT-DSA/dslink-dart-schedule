@@ -21,8 +21,15 @@ class ValueCalendarState {
     return provider.next(this);
   }
 
+  List<ValueAtTime> _queue = [];
+
   ValueAtTime getCurrent() {
-    return provider.current();
+    if (_queue.isNotEmpty) {
+      return _queue.first;
+    }
+    var m = provider.current();
+    _queue.add(m);
+    return m;
   }
 
   List<FunctionDisposable> _listeners = [];
@@ -31,57 +38,54 @@ class ValueCalendarState {
 
   FunctionDisposable listen(func(ValueAtTime v)) {
     Timer timer;
-    Timer timer2;
 
-    var id = lid++;
     var isFirst = true;
 
     check() {
+      if (timer != null && timer.isActive) {
+        timer.cancel();
+      }
+
       var current = getCurrent();
+
       if (current == null) {
+        if (defaultValue != null) {
+          logger.fine("[${current.description.name}] Back to Default (Current is null.)");
+          func(defaultValue);
+        }
         return;
       }
 
-      Duration nextCheck;
+      logger.fine("Current Event: ${current}");
 
       if (current.isHappeningNow) {
-        if (!current.deliveredTo.contains(id)) {
-          if (timer2 != null) {
-            timer2.cancel();
-          }
-          current.deliveredTo.add(id);
+        logger.fine("[${current.description.name}] Happening Now: ${current}");
+        if (!current.delivered) {
+          logger.fine(
+              "[${current.description.name}] Delivering Value ${current}");
           func(current);
-          timer2 = new Timer(current.duration, () {
-            if (defaultValue != null) {
-              func(defaultValue);
-            }
-          });
+          current.delivered = true;
         }
-        nextCheck = current.endsIn;
-      } else {
-        if (isFirst && defaultValue != null) {
+      } else if (current.hasAlreadyHappened) {
+        if (defaultValue != null) {
+          logger.fine("[${current.description.name}] Back to Default (Current has already happened.)");
           func(defaultValue);
+          _queue.remove(current);
         }
-        nextCheck = current.time.difference(new DateTime.now());
+      } else {
+        var now = new DateTime.now();
+        if ((now.isAfter(current.endsAt) || now.isAtSameMomentAs(current.endsAt)) && defaultValue != null) {
+          logger.fine("[${current.description.name}] Back to Default (Gap)");
+          func(defaultValue);
+          _queue.remove(current);
+        } else if (isFirst && defaultValue != null) {
+          logger.fine("[${current.description.name}] Back to Default (First)");
+          func(defaultValue);
+          _queue.remove(current);
+        }
       }
 
-      if (const bool.fromEnvironment("debug.next.check", defaultValue: false)) {
-        print("[${current.description.name}] Next Check in ${nextCheck.inSeconds} seconds");
-      }
-
-      timer = new Timer(nextCheck, () {
-        if (!current.deliveredTo.contains(id)) {
-          if (timer2 != null) {
-            timer2.cancel();
-          }
-          current.deliveredTo.add(id);
-          func(current);
-          timer2 = new Timer(current.duration, () {
-            if (defaultValue != null) {
-              func(defaultValue);
-            }
-          });
-        }
+      timer = new Timer(const Duration(seconds: 1), () {
         check();
       });
 
@@ -93,10 +97,6 @@ class ValueCalendarState {
     var disposable = new FunctionDisposable(() {
       if (timer != null) {
         timer.cancel();
-      }
-
-      if (timer2 != null) {
-        timer2.cancel();
       }
     });
 
@@ -132,7 +132,7 @@ class ValueAtTime {
 
   DateTime _ended;
 
-  List<int> deliveredTo = [];
+  bool delivered = false;
 
   DateTime get endsAt {
     if (_ended == null) {
@@ -154,11 +154,13 @@ class ValueAtTime {
 
   bool get isHappeningNow {
     var now = new DateTime.now();
-    return time.isBefore(now) && endsAt.isAfter(now);
+    var conditionA = time.isBefore(now) || time.isAtSameMomentAs(now);
+    var conditionB = endsAt.isAfter(now) || endsAt.isAtSameMomentAs(now);
+    return conditionA && conditionB;
   }
 
   @override
-  String toString() => "ValueAtTime(${time}, ${value})";
+  String toString() => "ValueAtTime(at ${time} delivers ${value} for ${duration.inSeconds} seconds)";
 }
 
 class EventDescription {
