@@ -3,6 +3,7 @@ library dslink.schedule.ical;
 import "dart:collection";
 
 import "calendar.dart";
+import "utils.dart";
 
 class CalendarObject {
   String type;
@@ -93,7 +94,7 @@ List tokenizeCalendar(String input) {
     var head = parts[0];
     var tail = parts.skip(1).join(":");
 
-    if (tail.contains(";") && tail.contains("=")) {
+    if (tail.contains(";") || tail.contains("=")) {
       tail = tokenizePropertyList(tail);
     }
 
@@ -254,6 +255,28 @@ enum Month {
   OCTOBER,
   NOVEMBER,
   DECEMBER
+}
+
+int iCalWeekdayToInt(String input) {
+  if (input == null) {
+    return null;
+  }
+
+  input = input.trim().toUpperCase();
+  var map = const <String, Weekday>{
+    "SU": Weekday.SUNDAY,
+    "MO": Weekday.MONDAY,
+    "TU": Weekday.TUESDAY,
+    "WE": Weekday.WEDNESDAY,
+    "TH": Weekday.THURSDAY,
+    "FR": Weekday.FRIDAY,
+    "SA": Weekday.SATURDAY
+  };
+
+  if (map.containsKey(input)) {
+    return map[input].index;
+  }
+  return null;
 }
 
 class Rule extends IterableBase {
@@ -499,7 +522,7 @@ class Event {
   DateTime start;
   DateTime end;
   String summary;
-  String description;
+  dynamic description;
   Rule rule;
   Map rrule;
 
@@ -520,15 +543,23 @@ class Event {
   }
 
   dynamic extractValue() {
-    var matches = VALUE_REGEX.allMatches(description);
-    if (matches.isEmpty) {
+    if (description is Map) {
+      return description["value"];
+    } else if (description is String) {
+      var matches = VALUE_REGEX.allMatches(description);
+      if (matches.isEmpty) {
+        return null;
+      }
+      return matches.first.group(1);
+    } else {
       return null;
     }
-    return matches.first.group(1);
   }
 
   void parseRule() {
-    var freq = {
+    var freqName = rrule["FREQ"];
+
+    var freq = const <String, RuleFrequency>{
       "DAILY": RuleFrequency.DAILY,
       "SECONDLY": RuleFrequency.SECONDLY,
       "YEARLY": RuleFrequency.YEARLY,
@@ -536,7 +567,7 @@ class Event {
       "HOURLY": RuleFrequency.HOURLY,
       "MINUTELY": RuleFrequency.MINUTELY,
       "WEEKLY": RuleFrequency.WEEKLY
-    }[rrule["FREQ"]];
+    }[freqName];
 
     rule = new Rule(freq);
 
@@ -544,12 +575,40 @@ class Event {
       rule.until = rrule["UNTIL"];
     }
 
-    var bySetPos = rrule["BYSETPOS"];
+    dynamic getListFromRule(String name) {
+      var value = rrule[name];
+
+      if (value == null) {
+        return null;
+      }
+
+      if (value is List) {
+        return value;
+      }
+
+      if (value is num) {
+        return value;
+      }
+
+      if (value is! String) {
+        return null;
+      }
+
+      var parts = value.split(",");
+      var list = [];
+      for (var x in parts) {
+        x = parseInputValue(x);
+        list.add(x);
+      }
+      return list;
+    }
+
+    var bySetPos = getListFromRule("BYSETPOS");
+    var byMonth = getListFromRule("BYMONTH");
+    var byMinute = getListFromRule("BYMINUTE");
+    var byHour = getListFromRule("BYHOUR");
+    var bySecond = getListFromRule("BYSECOND");
     var byWeekday = rrule["BYDAY"];
-    var byMonth = rrule["BYMONTH"];
-    var byMinute = rrule["BYMINUTE"];
-    var byHour = rrule["BYHOUR"];
-    var bySecond = rrule["BYSECOND"];
 
     void addToList(List a, b) {
       if (b is List) {
@@ -577,6 +636,15 @@ class Event {
 
     if (bySecond is num || bySecond is List) {
       addToList(rule.bySecond, bySecond);
+    }
+
+    if (byWeekday is String) {
+      var indexes = byWeekday
+          .split(",")
+          .map(iCalWeekdayToInt)
+          .where((x) => x != null)
+          .toList();
+      rule.byWeekday.addAll(indexes);
     }
 
     if (rrule["INTERVAL"] is num) {

@@ -7,6 +7,8 @@ import "package:dslink/utils.dart";
 import "package:dslink_schedule/ical.dart" as ical;
 import "package:dslink_schedule/calendar.dart";
 
+import "package:dslink_schedule/utils.dart";
+
 import "package:http/http.dart" as http;
 
 LinkProvider link;
@@ -29,15 +31,21 @@ main(List<String> args) async {
     r"$params": [
       {
         "name": "name",
-        "type": "string"
+        "type": "string",
+        "placeholder": "Light Schedule",
+        "description": "Name of the Schedule"
       },
       {
         "name": "url",
-        "type": "string"
+        "type": "string",
+        "placeholder": "http://my.calendar.host/calendar.ics",
+        "description": "URL to the iCalendar File"
       },
       {
         "name": "defaultValue",
-        "type": "dynamic"
+        "type": "dynamic",
+        "description": "Default Value for Schedule",
+        "default": 0
       }
     ],
     r"$invokable": "write"
@@ -58,6 +66,8 @@ class AddICalRemoteScheduleNode extends SimpleNode {
     String url = params["url"];
     dynamic defaultValue = params["defaultValue"];
 
+    defaultValue = parseInputValue(defaultValue);
+
     var rawName = NodeNamer.createName(name);
     link.addNode("/${rawName}", {
       r"$is": "iCalRemoteSchedule",
@@ -75,6 +85,7 @@ List<Future> loadQueue;
 class ICalendarRemoteSchedule extends SimpleNode {
   dynamic get defaultValue => attributes[r"@defaultValue"];
   String get url => attributes["@url"];
+  String get backupCalendar => attributes["@calendar"];
 
   ICalendarRemoteSchedule(String path) : super(path);
 
@@ -127,17 +138,29 @@ class ICalendarRemoteSchedule extends SimpleNode {
 
     try {
       if (content == null) {
-        var response = await httpClient.get(url);
-        if (response.statusCode != 200) {
-          throw new Exception("Failed to fetch schedule: Status Code was ${response.statusCode}");
+        try {
+          var response = await httpClient.get(url);
+          if (response.statusCode != 200) {
+            throw new Exception("Failed to fetch schedule: Status Code was ${response.statusCode}");
+          }
+          content = response.body;
+        } catch (e) {
+          if (backupCalendar != null) {
+            content = backupCalendar;
+          } else {
+            rethrow;
+          }
         }
-        content = response.body;
       }
 
       link.removeNode("${path}/error");
       link.getNode("${path}/events").children.keys.toList().forEach((x) {
         link.removeNode("${path}/events/${x}");
       });
+
+      // Wait so that the removing of those events can be flushed.
+      await new Future.delayed(const Duration(milliseconds: 4));
+
       var events = ical.loadEvents(content);
       icalProvider = new ical.ICalendarProvider(
           events.map((x) => new ical.EventInstance(x)).toList()
@@ -195,6 +218,11 @@ class ICalendarRemoteSchedule extends SimpleNode {
 
         var map = {
           r"$name": event.name,
+          "id": {
+            r"$name": "ID",
+            r"$type": "number",
+            "?value": i
+          },
           "value": {
             r"$name": "Value",
             r"$type": "dynamic",
@@ -211,10 +239,14 @@ class ICalendarRemoteSchedule extends SimpleNode {
           };
         }
 
-        link.addNode("${path}/events/${i}", map);
+        SimpleNode eventNode = link.addNode("${path}/events/${i}", map);
+        eventNode.updateList(r"$name");
       }
 
       _lastContent = content;
+
+      attributes["@calendar"] = content;
+      await link.saveAsync();
 
       if (httpTimer == null) {
         httpTimer = Scheduler.safeEvery(new Interval.forSeconds(10), () async {
@@ -243,16 +275,18 @@ class ICalendarRemoteSchedule extends SimpleNode {
               logger.fine("Schedule '${displayName}': Schedule Up-To-Date");
             }
           } catch (e) {
-            logger.warning("Failed to check for schedule update: ${e}");
+            logger.warning("Failed to check for schedule update for '${displayName}': ${e}");
           }
         });
       }
-    } catch (e) {
+    } catch (e, stack) {
       link.addNode("${path}/error", {
         r"$name": "Error",
         r"$type": "string",
         "?value": e.toString()
       });
+
+      logger.warning("Schedule '${displayName}' has an error.", e, stack);
     }
   }
 
@@ -273,12 +307,18 @@ class ICalendarRemoteSchedule extends SimpleNode {
 
   @override
   Map save() {
-    return {
+    var map = {
       r"$is": configs[r"$is"],
       r"$name": configs[r"$name"],
       "@url": attributes["@url"],
       "@defaultValue": attributes["@defaultValue"]
     };
+
+    if (attributes["@calendar"] != null) {
+      map["@calendar"] = attributes["@calendar"];
+    }
+
+    return map;
   }
 
   ValueCalendarState state;
