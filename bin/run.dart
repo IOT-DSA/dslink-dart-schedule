@@ -37,7 +37,7 @@ main(List<String> args) async {
       },
       {
         "name": "defaultValue",
-        "type": "number"
+        "type": "dynamic"
       }
     ],
     r"$invokable": "write"
@@ -170,7 +170,7 @@ class ICalendarRemoteSchedule extends SimpleNode {
         }
       });
 
-      untilTimer = new Timer.periodic(const Duration(seconds: 1), (_) {
+      untilTimer = new Timer.periodic(const Duration(milliseconds: 500), (_) {
         if (nextTimestamp != null) {
           Duration duration = nextTimestamp.difference(new DateTime.now()).abs();
           link.val("${path}/stc", duration.inSeconds);
@@ -208,28 +208,32 @@ class ICalendarRemoteSchedule extends SimpleNode {
 
       if (httpTimer == null) {
         httpTimer = Scheduler.safeEvery(new Interval.forSeconds(10), () async {
-          logger.fine("Schedule '${displayName}': Checking for Schedule Update");
+          try {
+            logger.finest("Schedule '${displayName}': Checking for Schedule Update");
 
-          var response = await httpClient.get(url);
+            var response = await httpClient.get(url);
 
-          if (response.statusCode != 200) {
-            logger.fine("Schedule '${displayName}': Checking for Schedule Update Failed (Status Code: ${response.statusCode})");
-            return;
-          }
-
-          var content = response.body;
-
-          if (_lastContent != content) {
-            var lastLines = _lastContent.split("\n");
-            var lines = content.split("\n");
-            lastLines.removeWhere((x) => x.startsWith("DTSTAMP:"));
-            lines.removeWhere((x) => x.startsWith("DTSTAMP:"));
-            if (lastLines.join("\n") != lines.join("\n")) {
-              logger.info("Schedule '${displayName}': Updating Schedule");
-              await loadSchedule(content);
+            if (response.statusCode != 200) {
+              logger.fine("Schedule '${displayName}': Checking for Schedule Update Failed (Status Code: ${response.statusCode})");
+              return;
             }
-          } else {
-            logger.fine("Schedule '${displayName}': Schedule Up-To-Date");
+
+            var content = response.body;
+
+            if (_lastContent != content) {
+              var lastLines = _lastContent.split("\n");
+              var lines = content.split("\n");
+              lastLines.removeWhere((x) => x.startsWith("DTSTAMP:"));
+              lines.removeWhere((x) => x.startsWith("DTSTAMP:"));
+              if (lastLines.join("\n") != lines.join("\n")) {
+                logger.info("Schedule '${displayName}': Updating Schedule");
+                await loadSchedule(content);
+              }
+            } else {
+              logger.fine("Schedule '${displayName}': Schedule Up-To-Date");
+            }
+          } catch (e) {
+            logger.warning("Failed to check for schedule update: ${e}");
           }
         });
       }
@@ -255,6 +259,16 @@ class ICalendarRemoteSchedule extends SimpleNode {
     if (httpTimer != null) {
       httpTimer.dispose();
     }
+  }
+
+  @override
+  Map save() {
+    return {
+      r"$is": configs[r"$is"],
+      r"$name": configs[r"$name"],
+      "@url": attributes["@url"],
+      "@defaultValue": attributes["@defaultValue"]
+    };
   }
 
   ValueCalendarState state;
