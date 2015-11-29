@@ -156,7 +156,7 @@ class ICalendarRemoteSchedule extends SimpleNode {
         untilTimer.cancel();
       }
 
-      changerDisposable = state.listen((ValueAtTime v) {
+      var func = (ValueAtTime v) {
         link.val("${path}/current", v.value);
         next = state.getNext();
         if (next != null) {
@@ -168,11 +168,21 @@ class ICalendarRemoteSchedule extends SimpleNode {
           link.val("${path}/next_ts", v.endsAt.toIso8601String());
           nextTimestamp = v.endsAt;
         }
-      });
+      };
+
+      changerDisposable = state.listen(func);
 
       untilTimer = new Timer.periodic(const Duration(milliseconds: 500), (_) {
         if (nextTimestamp != null) {
-          Duration duration = nextTimestamp.difference(new DateTime.now()).abs();
+          Duration duration = nextTimestamp.difference(new DateTime.now());
+          if (duration.isNegative) {
+            if (state.defaultValue != null) {
+              func(state.defaultValue);
+            }
+            return;
+          } else {
+            duration = duration.abs();
+          }
           link.val("${path}/stc", duration.inSeconds);
         }
       });
