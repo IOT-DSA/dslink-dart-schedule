@@ -257,7 +257,7 @@ enum Month {
   DECEMBER
 }
 
-int iCalWeekdayToInt(String input) {
+Weekday iCalWeekdayToEnum(String input) {
   if (input == null) {
     return null;
   }
@@ -274,7 +274,7 @@ int iCalWeekdayToInt(String input) {
   };
 
   if (map.containsKey(input)) {
-    return map[input].index;
+    return map[input];
   }
   return null;
 }
@@ -639,9 +639,9 @@ class Event {
     }
 
     if (byWeekday is String) {
-      var indexes = byWeekday
+      List<Weekday> indexes = byWeekday
           .split(",")
-          .map(iCalWeekdayToInt)
+          .map(iCalWeekdayToEnum)
           .where((x) => x != null)
           .toList();
       rule.byWeekday.addAll(indexes);
