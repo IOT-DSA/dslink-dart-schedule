@@ -4,9 +4,11 @@ import "dart:async";
 
 import "package:dslink/utils.dart";
 
+import "utils.dart";
+
 abstract class CalendarProvider {
   ValueAtTime next(ValueCalendarState state);
-  ValueAtTime current();
+  ValueAtTime current(ValueCalendarState state);
   List<EventDescription> listEvents();
 }
 
@@ -22,7 +24,7 @@ class ValueCalendarState {
   }
 
   ValueAtTime getCurrent() {
-    return provider.current();
+    return provider.current(this);
   }
 
   List<FunctionDisposable> _listeners = [];
@@ -141,19 +143,19 @@ class ValueAtTime {
     return _ended;
   }
 
-  Duration get until => time.difference(new DateTime.now());
+  Duration get until => time.difference(TimeUtils.now);
 
   Duration get endsIn {
-    return endsAt.difference(new DateTime.now());
+    return endsAt.difference(TimeUtils.now);
   }
 
   bool get hasAlreadyHappened {
-    var now = new DateTime.now();
+    var now = TimeUtils.now;
     return endsAt.isBefore(now) || endsAt.isAtSameMomentAs(now) || endsAt.difference(now).inSeconds == 0;
   }
 
   bool get isHappeningNow {
-    var now = new DateTime.now();
+    var now = TimeUtils.now;
     return time.isBefore(now) && endsAt.isAfter(now);
   }
 

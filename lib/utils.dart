@@ -1,5 +1,7 @@
 library dslink.schedule.utils;
 
+import "dart:async";
+
 dynamic parseInputValue(input) {
   if (input == null) return null;
 
@@ -20,4 +22,23 @@ dynamic parseInputValue(input) {
   }
 
   return input;
+}
+
+class TimeUtils {
+  static DateTime get now {
+    var mocked = Zone.current["mock.time"];
+    if (mocked == null) {
+      return new DateTime.now();
+    }
+
+    if (mocked is DateTime) {
+      return mocked;
+    }
+
+    if (mocked is Function) {
+      return mocked();
+    }
+
+    return new DateTime.now();
+  }
 }

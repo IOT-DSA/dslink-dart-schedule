@@ -678,7 +678,7 @@ class ICalendarProvider extends CalendarProvider {
   ICalendarProvider(this.events);
 
   @override
-  ValueAtTime current() {
+  ValueAtTime current(ValueCalendarState state) {
     var queue = <EventInstance, ValueAtTime>{};
     for (var e in events) {
       var cloned = e.iterator.clone();
