@@ -1,9 +1,13 @@
 library dslink.schedule.ical;
 
+import "dart:async";
 import "dart:collection";
 
 import "calendar.dart";
 import "utils.dart";
+import "tz.dart";
+
+import "package:timezone/timezone.dart";
 
 class CalendarObject {
   String type;
@@ -24,7 +28,6 @@ class CalendarObject {
     out["@properties"] = props;
     return out;
   }
-
 
   Map getTimezoneLookupTable() {
     var map = {};
@@ -775,6 +778,73 @@ class ICalendarProvider extends CalendarProvider {
       d.duration = x.event.duration;
       return d;
     }).toList();
+  }
+}
+
+Future<String> generateCalendar(String name) async {
+  var lines = [
+    "BEGIN:VCALENDAR",
+    "PRODID:-//Distributed Services Architecture//Schedule DSLink//EN",
+    "VERSION:2.0",
+    "CALSCALE:GREGORIAN",
+    "METHOD:PUBLISH",
+    "X-WR-CALNAME:${name}"
+  ];
+
+  var zone = await findTimezoneOnSystem();
+
+  if (zone == null) {
+    zone = UTC;
+  }
+
+  lines.add(buildICalTimezoneSection(zone));
+
+  return lines.join("\n");
+}
+
+void serializeCalendar(input, StringBuffer buffer, [String keyName]) {
+  if (keyName != null) {
+    if (input is Map) {
+      var meta = serializeCalendarValue(input["metadata"]);
+      var val = serializeCalendarValue(input["value"]);
+      if (meta.isNotEmpty) {
+        meta = ";${meta}";
+      }
+
+      buffer.writeln("${keyName}${meta}:${val}");
+      return;
+    }
+  }
+
+  if (input is CalendarObject) {
+    buffer.writeln("BEGIN:${input.type}");
+    for (String key in input.properties.keys) {
+      var value = input.properties[key];
+      if (value is List) {
+        for (var x in value) {
+          serializeCalendar(x, buffer, key);
+        }
+      } else {
+        buffer.writeln("${key}:${serializeCalendarValue(value)}");
+      }
+    }
+    buffer.writeln("END:${input.type}");
+  } else {
+    buffer.writeln(input);
+  }
+}
+
+String serializeCalendarValue(input) {
+  if (input is DateTime) {
+    return formatICalendarTime(input);
+  } else if (input is Map) {
+    var out = [];
+    for (var key in input.keys) {
+      out.add("${key}=${serializeCalendarValue(input[key])}");
+    }
+    return out.join(";");
+  } else {
+    return input.toString();
   }
 }
 

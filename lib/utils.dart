@@ -42,3 +42,15 @@ class TimeUtils {
     return new DateTime.now();
   }
 }
+
+String formatICalendarTime(DateTime time) {
+  var out = "";
+  out += time.year.toString().padLeft(4, "0");
+  out += time.month.toString().padLeft(2, "0");
+  out += time.day.toString().padLeft(2, "0");
+  out += "T";
+  out += time.hour.toString().padLeft(2, "0");
+  out += time.minute.toString().padLeft(2, "0");
+  out += time.second.toString().padLeft(2, "0");
+  return out;
+}
