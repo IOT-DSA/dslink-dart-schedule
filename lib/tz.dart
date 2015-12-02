@@ -5,24 +5,32 @@ import "dart:io";
 
 import "package:timezone/standalone.dart";
 import "package:timezone/src/tzdb.dart";
+import "package:timezone/timezone.dart";
 
 Future<Location> findTimezoneOnSystem() async {
   var file = new File("/etc/localtime");
 
-  if (!(await file.exists())) {
+  try {
+    var bytes = await file.readAsBytes();
+    var locations = tzdbDeserialize(bytes);
+    var location = locations.first;
+    return location;
+  } catch (e) {
+    var now = new DateTime.now();
+    for (Location loc in timeZoneDatabase.locations.values) {
+      if (loc.currentTimeZone.abbr == now.timeZoneName && loc.currentTimeZone.offset == now.timeZoneOffset.inMilliseconds) {
+        return loc;
+      }
+    }
     return null;
   }
-
-  var bytes = await file.readAsBytes();
-  var locations = tzdbDeserialize(bytes);
-  if (locations.isEmpty) {
-    return null;
-  }
-  var location = locations.first;
-  return location;
 }
 
 String buildICalTimezoneSection(Location location) {
+  if (location == null) {
+    location = UTC;
+  }
+
   var standardZone = location.zones.firstWhere((x) => !x.isDst, orElse: () => null);
   var daylightZone = location.zones.firstWhere((x) => x.isDst, orElse: () => null);
 

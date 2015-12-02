@@ -1,6 +1,7 @@
 library dslink.schedule.ical;
 
 import "dart:async";
+import "dart:convert";
 import "dart:collection";
 
 import "calendar.dart";
@@ -8,6 +9,9 @@ import "utils.dart";
 import "tz.dart";
 
 import "package:timezone/timezone.dart";
+
+import "package:dslink/utils.dart" show generateBasicId;
+import "package:dslink/common.dart" show unspecified;
 
 class CalendarObject {
   String type;
@@ -545,17 +549,56 @@ class Event {
     return lines.join("\n");
   }
 
+  EventDescription describe() {
+    var e = new EventDescription(summary, extractValue());
+    e.isRecurring = rrule == null || rrule.isEmpty;
+    if (!e.isRecurring) {
+      e.start = start;
+      e.end = end;
+    }
+
+    e.duration = duration;
+
+    return e;
+  }
+
+  dynamic _value = unspecified;
+
   dynamic extractValue() {
+    if (_value != unspecified) {
+      return _value;
+    }
+
     if (description is Map) {
-      return description["value"];
+      if (description["value_json"] != null) {
+        var val = description["value_json"];
+        if (val is String) {
+          val = const JsonDecoder().convert(val);
+        }
+        return _value = val;
+      } else {
+        return _value = description["value"];
+      }
     } else if (description is String) {
       var matches = VALUE_REGEX.allMatches(description);
+      var isJson = false;
       if (matches.isEmpty) {
-        return null;
+        matches = VALUE_JSON_REGEX.allMatches(description);
+        isJson = true;
       }
-      return matches.first.group(1);
+
+      if (matches.isEmpty) {
+        return _value = null;
+      }
+      var content = matches.first.group(1);
+
+      if (isJson) {
+        return _value = const JsonDecoder().convert(content);
+      } else {
+        return _value = content;
+      }
     } else {
-      return null;
+      return _value = null;
     }
   }
 
@@ -691,7 +734,7 @@ class ICalendarProvider extends CalendarProvider {
             cloned.current.time,
             value,
             e.event.duration,
-            new EventDescription(e.event.summary, value)
+            e.event.describe()
         );
 
         if (v.hasAlreadyHappened) {
@@ -735,7 +778,7 @@ class ICalendarProvider extends CalendarProvider {
             cloned.current.time,
             value,
             e.event.duration,
-            new EventDescription(e.event.summary, value)
+            e.event.describe()
         );
 
         if (v.hasAlreadyHappened) {
@@ -774,9 +817,7 @@ class ICalendarProvider extends CalendarProvider {
   @override
   List<EventDescription> listEvents() {
     return events.map((x) {
-      var d = new EventDescription(x.event.summary, x.event.extractValue());
-      d.duration = x.event.duration;
-      return d;
+      return x.event.describe();
     }).toList();
   }
 }
@@ -834,6 +875,99 @@ void serializeCalendar(input, StringBuffer buffer, [String keyName]) {
   }
 }
 
+class StoredEvent {
+  final String name;
+  final dynamic value;
+  final TimeRange timeRange;
+  final Map rule;
+
+  String id;
+
+  StoredEvent(this.name, this.value, this.timeRange, [this.rule]);
+
+  CalendarObject toCalendarObject() {
+    var object = new CalendarObject();
+    object.type = "VEVENT";
+    object.properties["DTSTART"] = formatICalendarTime(timeRange.start);
+    object.properties["DTEND"] = formatICalendarTime(timeRange.end);
+    var json = const JsonEncoder().convert(value);
+    object.properties["DESCRIPTION"] = "value_json=${json}";
+    object.properties["TRANSP"] = "OPAQUE";
+    object.properties["SUMMARY"] = name;
+    if (id != null) {
+      object.properties["UID"] = id;
+    }
+
+    if (rule != null && rule.isNotEmpty) {
+      object.properties["RRULE"] = rule;
+    }
+    return object;
+  }
+
+  void assignID() {
+    id = generateBasicId();
+  }
+
+  Map encode() {
+    return {
+      "name": name,
+      "value": value,
+      "start": timeRange.start.toIso8601String(),
+      "end": timeRange.end.toIso8601String(),
+      "rule": rule
+    };
+  }
+
+  static StoredEvent decode(Map input) {
+    if (input is! Map) return null;
+    String name = input["name"];
+    String id = input["id"];
+    dynamic value = input["value"];
+    var start = input["start"];
+    var end = input["end"];
+    Map rule = input["rule"];
+
+    if (rule is! Map) {
+      rule = {};
+    }
+
+    {
+      var tmp = rule;
+      rule = {};
+      for (String key in tmp.keys) {
+        var next = key.toUpperCase();
+        var value = tmp[key];
+        if (next == "FREQUENCY" || next == "FREQ") {
+          next = "FREQ";
+          value = value.toString().toUpperCase();
+        }
+        rule[next] = value;
+      }
+    }
+
+    if (start is String) {
+      start = DateTime.parse(start);
+    } else if (start is int) {
+      start = new DateTime.fromMillisecondsSinceEpoch(start);
+    }
+
+    if (end is String) {
+      end = DateTime.parse(end);
+    } else if (start is int) {
+      end = new DateTime.fromMillisecondsSinceEpoch(end);
+    }
+
+    var range = new TimeRange(start, end);
+
+    var event = new StoredEvent(name, value, range, rule);
+    event.id = id;
+    if (event.id == null) {
+      event.assignID();
+    }
+    return event;
+  }
+}
+
 String serializeCalendarValue(input) {
   if (input is DateTime) {
     return formatICalendarTime(input);
@@ -849,3 +983,4 @@ String serializeCalendarValue(input) {
 }
 
 final RegExp VALUE_REGEX = new RegExp(r"value=([^\n]+)");
+final RegExp VALUE_JSON_REGEX = new RegExp(r"value_json=([^\n]+)");

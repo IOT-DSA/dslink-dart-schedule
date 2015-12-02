@@ -24,6 +24,18 @@ dynamic parseInputValue(input) {
   return input;
 }
 
+class TimeRange {
+  final DateTime start;
+  final DateTime end;
+
+  TimeRange(this.start, this.end);
+
+  @override
+  String toString() {
+    return "TimeRange(${start} to ${end})";
+  }
+}
+
 class TimeUtils {
   static DateTime get now {
     var mocked = Zone.current["mock.time"];

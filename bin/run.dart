@@ -10,15 +10,22 @@ import "package:dslink_schedule/calendar.dart";
 import "package:dslink_schedule/utils.dart";
 
 import "package:http/http.dart" as http;
+import "package:timezone/standalone.dart";
 
 LinkProvider link;
 http.Client httpClient = new http.Client();
 
 main(List<String> args) async {
+  await initializeTimeZone();
+
   link = new LinkProvider(args, "Schedule-", profiles: {
     "addiCalRemoteSchedule": (String path) => new AddICalRemoteScheduleNode(path),
+    "addiCalLocalSchedule": (String path) => new AddICalLocalScheduleNode(path),
     "iCalRemoteSchedule": (String path) => new ICalendarRemoteSchedule(path),
-    "remove": (String path) => new DeleteActionNode.forParent(path, link.provider as MutableNodeProvider)
+    "iCalLocalSchedule": (String path) => new ICalendarLocalSchedule(path),
+    "remove": (String path) => new DeleteActionNode.forParent(path, link.provider as MutableNodeProvider),
+    "event": (String path) => new EventNode(path),
+    "addLocalEvent": (String path) => new AddLocalEventNode(path)
   }, autoInitialize: false);
 
   loadQueue = [];
@@ -40,6 +47,26 @@ main(List<String> args) async {
         "type": "string",
         "placeholder": "http://my.calendar.host/calendar.ics",
         "description": "URL to the iCalendar File"
+      },
+      {
+        "name": "defaultValue",
+        "type": "dynamic",
+        "description": "Default Value for Schedule",
+        "default": 0
+      }
+    ],
+    r"$invokable": "write"
+  });
+
+  link.addNode("/addiCalLocalSchedule", {
+    r"$is": "addiCalLocalSchedule",
+    r"$name": "Add iCalendar Local Schedule",
+    r"$params": [
+      {
+        "name": "name",
+        "type": "string",
+        "placeholder": "Light Schedule",
+        "description": "Name of the Schedule"
       },
       {
         "name": "defaultValue",
@@ -73,6 +100,90 @@ class AddICalRemoteScheduleNode extends SimpleNode {
       r"$is": "iCalRemoteSchedule",
       r"$name": name,
       "@url": url,
+      "@defaultValue": defaultValue
+    });
+
+    link.save();
+  }
+}
+
+class EventNode extends SimpleNode {
+  EventDescription description;
+
+  EventNode(String path) : super(path);
+
+  @override
+  onRemoving() {
+    var p = new Path(path);
+    var node = link.getNode(p.parent.parent.path);
+    if (node is ICalendarLocalSchedule) {
+      node.storedEvents.removeWhere((x) => x["name"] == description.name);
+      node.loadSchedule();
+    }
+  }
+
+  @override
+  void load(Map input) {
+    if (input["?description"] is EventDescription) {
+      description = input["?description"];
+    }
+    super.load(input);
+  }
+}
+
+class AddLocalEventNode extends SimpleNode {
+  AddLocalEventNode(String path) : super(path);
+
+  @override
+  onInvoke(Map<String, dynamic> params) async {
+    var name = params["name"];
+    var timeRangeString = params["time"];
+    var value = parseInputValue(params["value"]);
+
+    if (name is! String) {
+      throw new Exception("Invalid Event Name");
+    }
+
+    if (timeRangeString is! String) {
+      throw new Exception("Invalid Event Times");
+    }
+
+    DateTime start;
+    DateTime end;
+
+    {
+      var parts = timeRangeString.split("/");
+      start = DateTime.parse(parts[0]);
+      end = DateTime.parse(parts[1]);
+    }
+
+    TimeRange range = new TimeRange(start, end);
+
+    var event = new ical.StoredEvent(name, value, range);
+    var p = new Path(path);
+    ICalendarLocalSchedule schedule = link.getNode(p.parent.parent.path);
+
+    schedule.storedEvents.removeWhere((x) => x["name"] == name);
+    schedule.storedEvents.add(event.encode());
+    print(schedule.storedEvents);
+    await schedule.loadSchedule();
+  }
+}
+
+class AddICalLocalScheduleNode extends SimpleNode {
+  AddICalLocalScheduleNode(String path) : super(path);
+
+  @override
+  onInvoke(Map<String, dynamic> params) {
+    String name = params["name"];
+    dynamic defaultValue = params["defaultValue"];
+
+    defaultValue = parseInputValue(defaultValue);
+
+    var rawName = NodeNamer.createName(name);
+    link.addNode("/${rawName}", {
+      r"$is": "iCalLocalSchedule",
+      r"$name": name,
       "@defaultValue": defaultValue
     });
 
@@ -216,28 +327,7 @@ class ICalendarRemoteSchedule extends SimpleNode {
       for (var event in eventList) {
         i++;
 
-        var map = {
-          r"$name": event.name,
-          "id": {
-            r"$name": "ID",
-            r"$type": "number",
-            "?value": i
-          },
-          "value": {
-            r"$name": "Value",
-            r"$type": "dynamic",
-            "?value": event.value
-          }
-        };
-
-        if (event.duration != null) {
-          map["duration"] = {
-            r"$name": "Duration",
-            r"$type": "number",
-            "?value": event.duration.inSeconds,
-            "@unit": "seconds"
-          };
-        }
+        var map = event.asNode(i);
 
         SimpleNode eventNode = link.addNode("${path}/events/${i}", map);
         eventNode.updateList(r"$name");
@@ -317,6 +407,247 @@ class ICalendarRemoteSchedule extends SimpleNode {
     if (attributes["@calendar"] != null) {
       map["@calendar"] = attributes["@calendar"];
     }
+
+    return map;
+  }
+
+  ValueCalendarState state;
+  ical.ICalendarProvider icalProvider;
+  Timer untilTimer;
+  Disposable httpTimer;
+}
+
+class ICalendarLocalSchedule extends SimpleNode {
+  dynamic get defaultValue => attributes[r"@defaultValue"];
+  List<Map> storedEvents = [];
+
+  ICalendarLocalSchedule(String path) : super(path);
+
+  Disposable changerDisposable;
+
+  @override
+  onCreated() {
+    if (attributes["@events"] is List) {
+      storedEvents.clear();
+      for (var element in attributes["@events"]) {
+        if (element is Map) {
+          storedEvents.add(element);
+        }
+      }
+    }
+
+    link.addNode("${path}/current", {
+      r"$name": "Current Value",
+      r"$type": "dynamic"
+    });
+
+    link.addNode("${path}/next", {
+      r"$name": "Next Value",
+      r"$type": "dynamic"
+    });
+
+    link.addNode("${path}/next_ts", {
+      r"$name": "Next Value Timestamp",
+      r"$type": "dynamic"
+    });
+
+    link.addNode("${path}/stc", {
+      r"$name": "Value Changes In",
+      r"$type": "number",
+      "@unit": "seconds"
+    });
+
+    link.addNode("${path}/events", {
+      r"$name": "Events",
+      "addEvent": {
+        r"$name": "Add Event",
+        r"$is": "addLocalEvent",
+        r"$params": [
+          {
+            "name": "name",
+            "type": "string",
+            "placeholder": "Turn on Light"
+          },
+          {
+            "name": "time",
+            "type": "string",
+            "editor": "daterange"
+          },
+          {
+            "name": "value",
+            "type": "dynamic",
+            "description": "Event Value"
+          }
+        ],
+        r"$invokable": "write"
+      }
+    });
+
+    link.addNode("${path}/remove", {
+      r"$name": "Remove",
+      r"$invokable": "write",
+      r"$is": "remove"
+    });
+
+    var future = loadSchedule();
+
+    if (loadQueue != null) {
+      loadQueue.add(future);
+    }
+  }
+
+  bool isLoadingSchedule = false;
+
+  loadSchedule() async {
+    if (isLoadingSchedule) {
+      while (isLoadingSchedule) {
+        await new Future.delayed(const Duration(milliseconds: 50));
+      }
+    }
+
+    isLoadingSchedule = true;
+    logger.fine("Schedule '${displayName}': Loading Schedule");
+
+    try {
+      link.removeNode("${path}/error");
+      link.getNode("${path}/events").children.keys.toList().forEach((x) {
+        if (int.parse(x, onError: (source) => null) != null) {
+          link.removeNode("${path}/events/${x}");
+        }
+      });
+
+      // Wait so that the removing of those events can be flushed.
+      await new Future.delayed(const Duration(milliseconds: 2));
+
+      ical.CalendarObject object;
+
+      {
+        List<ical.StoredEvent> loadedEvents = storedEvents
+            .map((x) => ical.StoredEvent.decode(x))
+            .where((x) => x != null)
+            .toList();
+
+        var data = await ical.generateCalendar(displayName);
+        var tokens = ical.tokenizeCalendar(data);
+        object = ical.parseCalendarObjects(tokens);
+        if (object.properties["VEVENT"] == null) {
+          object.properties["VEVENT"] = [];
+        }
+        List<ical.CalendarObject> fakeEventObjects = object.properties["VEVENT"];
+        for (var n in loadedEvents) {
+          var e = n.toCalendarObject();
+          e.parent = object;
+          fakeEventObjects.add(n.toCalendarObject());
+        }
+      }
+
+      StringBuffer buff = new StringBuffer();
+      ical.serializeCalendar(object, buff);
+
+      var events = ical.loadEvents(buff.toString());
+      icalProvider = new ical.ICalendarProvider(
+          events.map((x) => new ical.EventInstance(x)).toList()
+      );
+      state = new ValueCalendarState(icalProvider);
+      state.defaultValue = new ValueAtTime.forDefault(defaultValue);
+
+      ValueAtTime next;
+      DateTime nextTimestamp;
+
+      if (changerDisposable != null) {
+        changerDisposable.dispose();
+      }
+
+      if (untilTimer != null) {
+        untilTimer.cancel();
+      }
+
+      var func = (ValueAtTime v) {
+        link.val("${path}/current", v.value);
+        next = state.getNext();
+        if (next != null) {
+          link.val("${path}/next", next.value);
+          link.val("${path}/next_ts", next.time.toIso8601String());
+          nextTimestamp = next.time;
+        } else {
+          link.val("${path}/next", defaultValue);
+          link.val("${path}/next_ts", v.endsAt.toIso8601String());
+          nextTimestamp = v.endsAt;
+        }
+      };
+
+      changerDisposable = state.listen(func);
+
+      untilTimer = new Timer.periodic(const Duration(milliseconds: 500), (_) {
+        if (nextTimestamp != null) {
+          Duration duration = nextTimestamp.difference(new DateTime.now());
+          if (duration.isNegative) {
+            if (state.defaultValue != null) {
+              func(state.defaultValue);
+            }
+            return;
+          } else {
+            duration = duration.abs();
+          }
+          link.val("${path}/stc", duration.inSeconds);
+        }
+      });
+
+      var eventList = icalProvider.listEvents();
+
+      var i = 0;
+      for (var event in eventList) {
+        i++;
+
+        var map = event.asNode(i);
+
+        SimpleNode eventNode = link.addNode("${path}/events/${i}", map);
+        eventNode.updateList(r"$name");
+      }
+    } catch (e, stack) {
+      link.addNode("${path}/error", {
+        r"$name": "Error",
+        r"$type": "string",
+        "?value": e.toString()
+      });
+
+      logger.warning("Schedule '${displayName}' has an error.", e, stack);
+    }
+
+    isLoadingSchedule = false;
+
+    link.save();
+  }
+
+  @override
+  onRemoving() {
+    if (changerDisposable != null) {
+      changerDisposable.dispose();
+    }
+
+    if (untilTimer != null) {
+      untilTimer.cancel();
+    }
+
+    if (httpTimer != null) {
+      httpTimer.dispose();
+    }
+  }
+
+  @override
+  Map save() {
+    var map = {
+      r"$is": configs[r"$is"],
+      r"$name": configs[r"$name"],
+      "@url": attributes["@url"],
+      "@defaultValue": attributes["@defaultValue"]
+    };
+
+    if (attributes["@calendar"] != null) {
+      map["@calendar"] = attributes["@calendar"];
+    }
+
+    map["@events"] = storedEvents;
 
     return map;
   }

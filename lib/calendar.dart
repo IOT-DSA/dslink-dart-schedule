@@ -168,6 +168,58 @@ class EventDescription {
 
   dynamic value;
   Duration duration;
+  DateTime start;
+  DateTime end;
+  bool isRecurring = false;
 
   EventDescription(this.name, this.value);
+
+  Map asNode(int i) {
+    var map = {
+      r"$is": "event",
+      "?description": this,
+      r"$name": name,
+      "id": {
+        r"$name": "ID",
+        r"$type": "number",
+        "?value": i
+      },
+      "value": {
+        r"$name": "Value",
+        r"$type": "dynamic",
+        "?value": value
+      }
+    };
+
+    if (duration != null) {
+      map["duration"] = {
+        r"$name": "Duration",
+        r"$type": "number",
+        "?value": duration.inSeconds,
+        "@unit": "seconds"
+      };
+    }
+
+    map["remove"] = {
+      r"$name": "Remove",
+      r"$invokable": "write",
+      r"$is": "remove"
+    };
+
+    if (!isRecurring) {
+      map["start"] = {
+        r"$name": "Start",
+        r"$type": "string",
+        "?value": start.toIso8601String()
+      };
+
+      map["end"] = {
+        r"$name": "End",
+        r"$type": "string",
+        "?value": end.toIso8601String()
+      };
+    }
+
+    return map;
+  }
 }
