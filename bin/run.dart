@@ -34,7 +34,7 @@ main(List<String> args) async {
 
   link.addNode("/addiCalRemoteSchedule", {
     r"$is": "addiCalRemoteSchedule",
-    r"$name": "Add iCalendar Remote Schedule",
+    r"$name": "Add Remote Schedule",
     r"$params": [
       {
         "name": "name",
@@ -60,7 +60,7 @@ main(List<String> args) async {
 
   link.addNode("/addiCalLocalSchedule", {
     r"$is": "addiCalLocalSchedule",
-    r"$name": "Add iCalendar Local Schedule",
+    r"$name": "Add Local Schedule",
     r"$params": [
       {
         "name": "name",
@@ -139,6 +139,7 @@ class AddLocalEventNode extends SimpleNode {
     var name = params["name"];
     var timeRangeString = params["time"];
     var value = parseInputValue(params["value"]);
+    var ruleString = params["rule"];
 
     if (name is! String) {
       throw new Exception("Invalid Event Name");
@@ -150,6 +151,7 @@ class AddLocalEventNode extends SimpleNode {
 
     DateTime start;
     DateTime end;
+    Map rule;
 
     {
       var parts = timeRangeString.split("/");
@@ -159,7 +161,16 @@ class AddLocalEventNode extends SimpleNode {
 
     TimeRange range = new TimeRange(start, end);
 
+    if (ruleString != null) {
+      rule = ical.tokenizePropertyList(ruleString);
+    }
+
     var event = new ical.StoredEvent(name, value, range);
+
+    if (rule != null && rule.isNotEmpty) {
+      event.rule = rule;
+    }
+
     var p = new Path(path);
     ICalendarLocalSchedule schedule = link.getNode(p.parent.parent.path);
 
@@ -477,6 +488,11 @@ class ICalendarLocalSchedule extends SimpleNode {
             "name": "value",
             "type": "dynamic",
             "description": "Event Value"
+          },
+          {
+            "name": "rule",
+            "type": "string",
+            "placeholder": "FREQ=DAILY"
           }
         ],
         r"$invokable": "write"

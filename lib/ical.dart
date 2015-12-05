@@ -66,19 +66,20 @@ class CalendarObject {
   }
 }
 
+Map tokenizePropertyList(String input) {
+  var props = input.split(";");
+  var out = {};
+  for (var prop in props) {
+    var parts = prop.split("=");
+    var key = parts[0];
+    var value = parts.skip(1).join("=");
+    out[key] = value;
+  }
+  return out;
+}
+
 List tokenizeCalendar(String input) {
   input = input.replaceAll("\r\n", "\n");
-  Map tokenizePropertyList(String input) {
-    var props = input.split(";");
-    var out = {};
-    for (var prop in props) {
-      var parts = prop.split("=");
-      var key = parts[0];
-      var value = parts.skip(1).join("=");
-      out[key] = value;
-    }
-    return out;
-  }
 
   var lines = input.split("\n");
   var out = [];
