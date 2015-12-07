@@ -532,6 +532,7 @@ class ICalendarLocalSchedule extends SimpleNode {
   }
 
   bool isLoadingSchedule = false;
+  String generatedCalendar;
 
   loadSchedule() async {
     if (isLoadingSchedule) {
@@ -578,8 +579,9 @@ class ICalendarLocalSchedule extends SimpleNode {
 
       StringBuffer buff = new StringBuffer();
       ical.serializeCalendar(object, buff);
+      generatedCalendar = buff.toString();
 
-      var events = ical.loadEvents(buff.toString());
+      var events = ical.loadEvents(generatedCalendar);
       icalProvider = new ical.ICalendarProvider(
           events.map((x) => new ical.EventInstance(x)).toList()
       );
@@ -757,13 +759,30 @@ handleHttpRequest(HttpRequest request) async {
         "message": "DSA Schedule Server"
       }
     });
-  } else {
-    await end({
-      "ok": false,
-      "error": {
-        "message": "${path} was not found.",
-        "code": "http.not.found"
+    return;
+  } else if (path.startsWith("/calendars/") && path.endsWith(".ics")) {
+    var name = path.substring(11, path.length - 4);
+
+    for (var node in provider.nodes.values) {
+      if (node is! ICalendarLocalSchedule) {
+        continue;
       }
-    }, status: HttpStatus.NOT_FOUND);
+
+      if (name == node.displayName) {
+        ICalendarLocalSchedule sched = node;
+        if (sched.generatedCalendar != null) {
+          await end(sched.generatedCalendar);
+          return;
+        }
+      }
+    }
   }
+
+  await end({
+    "ok": false,
+    "error": {
+      "message": "${path} was not found.",
+      "code": "http.not.found"
+    }
+  }, status: HttpStatus.NOT_FOUND);
 }
