@@ -734,6 +734,7 @@ rebindHttpServer(int port) async {
 handleHttpRequest(HttpRequest request) async {
   HttpResponse response = request.response;
   String path = request.uri.path;
+  String method = request.method;
 
   end(input, {int status: HttpStatus.OK}) async {
     response.statusCode = status;
@@ -760,7 +761,7 @@ handleHttpRequest(HttpRequest request) async {
       }
     });
     return;
-  } else if (path.startsWith("/calendars/") && path.endsWith(".ics")) {
+  } else if (method == "GET" && path.startsWith("/calendars/") && path.endsWith(".ics")) {
     var name = path.substring(11, path.length - 4);
 
     for (var node in provider.nodes.values) {
