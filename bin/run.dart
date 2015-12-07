@@ -1,4 +1,7 @@
 import "dart:async";
+import "dart:convert";
+import "dart:io";
+import "dart:typed_data";
 
 import "package:dslink/dslink.dart";
 import "package:dslink/nodes.dart";
@@ -14,6 +17,7 @@ import "package:timezone/standalone.dart";
 
 LinkProvider link;
 http.Client httpClient = new http.Client();
+SimpleNodeProvider provider;
 
 main(List<String> args) async {
   await initializeTimeZone();
@@ -25,12 +29,15 @@ main(List<String> args) async {
     "iCalLocalSchedule": (String path) => new ICalendarLocalSchedule(path),
     "remove": (String path) => new DeleteActionNode.forParent(path, link.provider as MutableNodeProvider),
     "event": (String path) => new EventNode(path),
-    "addLocalEvent": (String path) => new AddLocalEventNode(path)
+    "addLocalEvent": (String path) => new AddLocalEventNode(path),
+    "httpPort": (String path) => new HttpPortNode(path)
   }, autoInitialize: false);
 
   loadQueue = [];
 
   link.init();
+
+  provider = link.provider;
 
   link.addNode("/addiCalRemoteSchedule", {
     r"$is": "addiCalRemoteSchedule",
@@ -57,6 +64,18 @@ main(List<String> args) async {
     ],
     r"$invokable": "write"
   });
+
+  if (!provider.nodes.containsKey("/httpPort")) {
+    link.addNode("/httpPort", {
+      r"$name": "HTTP Port",
+      r"$type": "int",
+      r"$writable": "write",
+      r"$is": "httpPort",
+      "?value": -1
+    });
+  }
+
+  await rebindHttpServer(link.val("/httpPort"));
 
   link.addNode("/addiCalLocalSchedule", {
     r"$is": "addiCalLocalSchedule",
@@ -672,4 +691,79 @@ class ICalendarLocalSchedule extends SimpleNode {
   ical.ICalendarProvider icalProvider;
   Timer untilTimer;
   Disposable httpTimer;
+}
+
+class HttpPortNode extends SimpleNode {
+  HttpPortNode(String path) : super(path);
+
+  @override
+  onSetValue(dynamic val) {
+    if (val is String) {
+      try {
+        val = num.parse(val);
+      } catch (e) {}
+    }
+
+    if (val is num && !val.isNaN && (val > 0 || val == -1)) {
+      var port = val.toInt();
+      updateValue(port);
+      rebindHttpServer(port);
+      link.save();
+      return false;
+    } else {
+      return false;
+    }
+  }
+}
+
+HttpServer server;
+
+rebindHttpServer(int port) async {
+  if (server != null) {
+    server.close(force: true);
+    server = null;
+  }
+  server = await HttpServer.bind("0.0.0.0", port);
+  server.listen(handleHttpRequest, onError: (e, stack) {
+    logger.warning("Error in HTTP Server.", e, stack);
+  }, cancelOnError: false);
+}
+
+handleHttpRequest(HttpRequest request) async {
+  HttpResponse response = request.response;
+  String path = request.uri.path;
+
+  end(input, {int status: HttpStatus.OK}) async {
+    response.statusCode = status;
+
+    if (input is String) {
+      response.write(input);
+    } else if (input is Uint8List) {
+      response.headers.contentType = ContentType.BINARY;
+      response.add(input);
+    } else if (input is Map || input is List) {
+      response.headers.contentType = ContentType.JSON;
+      response.writeln(const JsonEncoder.withIndent("  ").convert(input));
+    } else {
+    }
+
+    await response.close();
+  }
+
+  if (path == "/") {
+    await end({
+      "ok": true,
+      "response": {
+        "message": "DSA Schedule Server"
+      }
+    });
+  } else {
+    await end({
+      "ok": false,
+      "error": {
+        "message": "${path} was not found.",
+        "code": "http.not.found"
+      }
+    }, status: HttpStatus.NOT_FOUND);
+  }
 }
