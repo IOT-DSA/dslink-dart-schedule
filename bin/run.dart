@@ -15,6 +15,8 @@ import "package:dslink_schedule/utils.dart";
 import "package:http/http.dart" as http;
 import "package:timezone/standalone.dart";
 
+import "package:path/path.dart" as pathlib;
+
 LinkProvider link;
 http.Client httpClient = new http.Client();
 SimpleNodeProvider provider;
@@ -75,7 +77,8 @@ main(List<String> args) async {
     });
   }
 
-  await rebindHttpServer(link.val("/httpPort"));
+  var portValue = link.val("/httpPort");
+  await rebindHttpServer(portValue is String ? int.parse(portValue) : portValue);
 
   link.addNode("/addiCalLocalSchedule", {
     r"$is": "addiCalLocalSchedule",
@@ -195,7 +198,6 @@ class AddLocalEventNode extends SimpleNode {
 
     schedule.storedEvents.removeWhere((x) => x["name"] == name);
     schedule.storedEvents.add(event.encode());
-    print(schedule.storedEvents);
     await schedule.loadSchedule();
   }
 }
@@ -566,6 +568,7 @@ class ICalendarLocalSchedule extends SimpleNode {
         var data = await ical.generateCalendar(displayName);
         var tokens = ical.tokenizeCalendar(data);
         object = ical.parseCalendarObjects(tokens);
+        rootCalendarObject = object;
         if (object.properties["VEVENT"] == null) {
           object.properties["VEVENT"] = [];
         }
@@ -689,6 +692,7 @@ class ICalendarLocalSchedule extends SimpleNode {
     return map;
   }
 
+  ical.CalendarObject rootCalendarObject;
   ValueCalendarState state;
   ical.ICalendarProvider icalProvider;
   Timer untilTimer;
@@ -721,6 +725,10 @@ class HttpPortNode extends SimpleNode {
 HttpServer server;
 
 rebindHttpServer(int port) async {
+  if (!port.isEven) {
+    return;
+  }
+
   if (server != null) {
     server.close(force: true);
     server = null;
@@ -753,6 +761,8 @@ handleHttpRequest(HttpRequest request) async {
     await response.close();
   }
 
+  var parts = pathlib.url.split(path);
+
   if (path == "/") {
     await end({
       "ok": true,
@@ -761,19 +771,50 @@ handleHttpRequest(HttpRequest request) async {
       }
     });
     return;
-  } else if (method == "GET" && path.startsWith("/calendars/") && path.endsWith(".ics")) {
-    var name = path.substring(11, path.length - 4);
+  } else if (method == "GET" &&
+      parts.length == 3 &&
+      parts[1] == "calendars" &&
+      pathlib.extension(path) == ".ics") {
+    var name = pathlib.basenameWithoutExtension(parts[2]);
+    var node = findLocalSchedule(name);
+    if (node != null && node.generatedCalendar != null) {
+      await end(node.generatedCalendar);
+      return;
+    }
+  } else if (parts.length == 5 &&
+      parts[1] == "calendars" &&
+      parts[3] == "events" &&
+      parts[4].endsWith(".ics")) {
+    var node = findLocalSchedule(parts[2]);
+    var name = pathlib.basenameWithoutExtension(parts[4]);
+    if (node != null && node.generatedCalendar != null) {
+      if (method == "GET") {
+        List<Map> events = node.storedEvents;
+        for (var x in events) {
+          if (x["id"] == name || x["name"] == name) {
+            var allEvents = node.rootCalendarObject.properties["VEVENT"];
+            ical.CalendarObject event;
 
-    for (var node in provider.nodes.values) {
-      if (node is! ICalendarLocalSchedule) {
-        continue;
-      }
+            for (ical.CalendarObject t in allEvents) {
+              if (t.properties["UID"] == x["id"]) {
+                event = t;
+              }
+            }
 
-      if (name == node.displayName) {
-        ICalendarLocalSchedule sched = node;
-        if (sched.generatedCalendar != null) {
-          await end(sched.generatedCalendar);
-          return;
+            var cal = new ical.CalendarObject();
+            cal.type = "VCALENDAR";
+            cal.properties.addAll({
+              "PRODID": "PRODID:-//Distributed Services Architecture//Schedule DSLink//EN",
+              "VERSION": "2.0",
+              "CALSCALE": "GREGORIAN",
+              "METHOD": "PUBLISH"
+            });
+            cal.properties["VEVENT"] = [event];
+            var buff = new StringBuffer();
+            ical.serializeCalendar(cal, buff);
+            await end(buff.toString());
+            return;
+          }
         }
       }
     }
@@ -786,4 +827,18 @@ handleHttpRequest(HttpRequest request) async {
       "code": "http.not.found"
     }
   }, status: HttpStatus.NOT_FOUND);
+}
+
+ICalendarLocalSchedule findLocalSchedule(String name) {
+  for (SimpleNode node in provider.nodes.values) {
+    if (node is! ICalendarLocalSchedule) {
+      continue;
+    }
+
+    if (name == node.displayName || node.path == "/${name}") {
+      return node;
+    }
+  }
+
+  return null;
 }

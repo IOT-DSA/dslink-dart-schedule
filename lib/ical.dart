@@ -10,7 +10,7 @@ import "tz.dart";
 
 import "package:timezone/timezone.dart";
 
-import "package:dslink/utils.dart" show generateBasicId;
+import "package:dslink/utils.dart" show generateBasicId, generateToken;
 import "package:dslink/common.dart" show unspecified;
 
 class CalendarObject {
@@ -906,17 +906,23 @@ class StoredEvent {
   }
 
   void assignID() {
-    id = generateBasicId();
+    id = generateToken();
   }
 
   Map encode() {
-    return {
+    if (id == null) {
+      assignID();
+    }
+
+    var map = {
       "name": name,
       "value": value,
       "start": timeRange.start.toIso8601String(),
       "end": timeRange.end.toIso8601String(),
-      "rule": rule
+      "rule": rule,
+      "id": id
     };
+    return map;
   }
 
   static StoredEvent decode(Map input) {
