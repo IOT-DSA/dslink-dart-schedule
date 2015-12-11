@@ -14,3 +14,5 @@ out/
 .dslink.key
 nodes.json
 .packages
+.floo
+.flooignore

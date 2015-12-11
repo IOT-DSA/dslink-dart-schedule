@@ -18,7 +18,8 @@ Future<Location> findTimezoneOnSystem() async {
   } catch (e) {
     var now = new DateTime.now();
     for (Location loc in timeZoneDatabase.locations.values) {
-      if (loc.currentTimeZone.abbr == now.timeZoneName && loc.currentTimeZone.offset == now.timeZoneOffset.inMilliseconds) {
+      if (loc.currentTimeZone.abbr == now.timeZoneName &&
+          loc.currentTimeZone.offset == now.timeZoneOffset.inMilliseconds) {
         return loc;
       }
     }
