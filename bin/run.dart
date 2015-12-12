@@ -818,6 +818,69 @@ handleHttpRequest(HttpRequest request) async {
         }
       }
     }
+
+    if (method == "PUT") {
+      String input = await request.transform(const Utf8Decoder()).join();
+      var tokens = ical.tokenizeCalendar(input);
+      ical.CalendarObject obj = ical.parseCalendarObjects(tokens);
+      print(obj.serialize());
+      List events = obj.properties["VEVENT"];
+      if (events is! List || events.isEmpty) {
+        await end({
+          "ok": false,
+          "error": {
+            "message": "Invalid Input.",
+            "code": "http.calendar.invalid"
+          }
+        }, status: HttpStatus.NOT_ACCEPTABLE);
+        return;
+      }
+
+      List<Map> out = [];
+
+      for (ical.CalendarObject x in events) {
+        DateTime startTime = x.properties["DTSTART"];
+        DateTime endTime = x.properties["DTEND"];
+        String id = x.properties["UID"];
+        var buff = new StringBuffer();
+        ical.serializeCalendar(x.properties["RRULE"], buff);
+        String rule = buff.toString();
+
+        if (id == null) {
+          id = generateToken();
+        }
+
+        var map = {
+          "name": x.properties["SUMMARY"],
+          "id": id
+        };
+
+        if (startTime != null) {
+          map["start"] = startTime.toIso8601String();
+        }
+
+        if (endTime != null) {
+          map["end"] = endTime.toIso8601String();
+        }
+
+        if (rule != null) {
+          map["rule"] = rule;
+        }
+
+        if (x.properties["DESCRIPTION"] != null) {
+          map["value"] = parseInputValue(x.properties["DESCRIPTION"]);
+        }
+
+        out.add(map);
+      }
+
+      node.storedEvents.addAll(out);
+
+      await node.loadSchedule();
+
+      await end({}, status: HttpStatus.CREATED);
+      return;
+    }
   }
 
   await end({

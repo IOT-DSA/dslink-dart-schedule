@@ -64,6 +64,12 @@ class CalendarObject {
 
     return map;
   }
+
+  String serialize() {
+    var buff = new StringBuffer();
+    serializeCalendar(this, buff);
+    return buff.toString();
+  }
 }
 
 Map tokenizePropertyList(String input) {
