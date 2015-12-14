@@ -886,7 +886,7 @@ class StoredEvent {
   final String name;
   final dynamic value;
   final TimeRange timeRange;
-  final Map rule;
+  Map rule;
 
   String id;
 
