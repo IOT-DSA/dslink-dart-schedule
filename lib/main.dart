@@ -794,12 +794,10 @@ handleHttpRequest(HttpRequest request) async {
 
   var parts = pathlib.url.split(path);
 
-  if (path.startsWith("/calendars/")) {
-    response.headers.set("DAV", "1, 2, calendar-access");
-    response.headers.set("Allow", "OPTIONS, GET, HEAD, POST, PUT, DELETE, TRACE, COPY, MOVE, PROPFIND, PROPPATCH, LOCK, UNLOCK, REPORT, ACL");
-  }
+  response.headers.set("DAV", "1, 2, calendar-access");
+  response.headers.set("Allow", "OPTIONS, GET, HEAD, POST, PUT, DELETE, TRACE, COPY, MOVE, PROPFIND, PROPPATCH, LOCK, UNLOCK, REPORT, ACL");
 
-  if (path == "/") {
+  if (method != "PROPFIND" && path == "/") {
     await end({
       "ok": true,
       "response": {
@@ -817,6 +815,55 @@ handleHttpRequest(HttpRequest request) async {
       await end(node.generatedCalendar);
       return;
     }
+  } else if (method == "PROPFIND" && path == "/") {
+    response.headers.contentType =
+        ContentType.parse("application/xml; charset=utf-8");
+    await end("""
+<?xml version='1.0' encoding='UTF-8'?>
+<multistatus xmlns='DAV:'>
+  <response>
+    <href>/</href>
+    <propstat>
+      <prop>
+        <current-user-principal>
+          <href>/principals/main/</href>
+        </current-user-principal>
+        <resourcetype>
+          <collection/>
+        </resourcetype>
+      </prop>
+      <status>HTTP/1.1 200 OK</status>
+    </propstat>
+  </response>
+</multistatus>
+    """, status: 207);
+    return;
+  } else if (method == "PROPFIND" && path == "/principals/main/") {
+    var input = await request
+        .transform(const Utf8Decoder())
+        .transform(const LineSplitter())
+        .join("\n");
+    print(input);
+    response.headers.contentType =
+        ContentType.parse("application/xml; charset=utf-8");
+    await end("""
+<?xml version='1.0' encoding='UTF-8'?>
+<multistatus xmlns='DAV:'>
+  <response>
+    <href>/principals/main/</href>
+    <propstat>
+      <prop>
+        <displayname>DSA</displayname>
+        <B:calendar-home-set xmlns:B="urn:ietf:params:xml:ns:caldav">
+          <href>/calendars/Test/</href>
+        </B:calendar-home-set>
+      </prop>
+      <status>HTTP/1.1 200 OK</status>
+    </propstat>
+  </response>
+</multistatus>
+    """, status: 207);
+    return;
   } else if (parts.length == 5 &&
       parts[1] == "calendars" &&
       parts[3] == "events" &&
@@ -936,7 +983,7 @@ handleHttpRequest(HttpRequest request) async {
       await end({}, status: HttpStatus.CREATED);
       return;
     }
-  } else if (path.startsWith("/calendars/") && parts.length >= 2 && (method == "PROPFIND" || method == "OPTIONS")) {
+  } else if (path.startsWith("/calendars/") && parts.length >= 2 && (method == "PROPFIND")) {
     String name;
     if (parts.length >= 3) {
       name = parts[2];
@@ -944,8 +991,8 @@ handleHttpRequest(HttpRequest request) async {
       name = "";
     }
 
-    if (name.endsWith(".ics")) {
-      name = name.substring(0, name.length - 4);
+    if (name.endsWith(".calendar")) {
+      name = name.substring(0, name.length - 9);
     }
 
     ICalendarLocalSchedule schedule = findLocalSchedule(name);
@@ -976,11 +1023,12 @@ handleHttpRequest(HttpRequest request) async {
 
     var results = <XML.XmlName, dynamic>{};
     var out = new XML.XmlBuilder();
+
     var notOut = [];
 
     Uri syncTokenUri = request.requestedUri;
     syncTokenUri = syncTokenUri
-        .replace(path: pathlib.join(syncTokenUri.path, "sync", "500"));
+        .replace(path: pathlib.join(syncTokenUri.path, "sync") + "/");
     for (XML.XmlElement e in prop.children.where((x) => x is XML.XmlElement)) {
       var name = e.name.local;
 
@@ -998,9 +1046,7 @@ handleHttpRequest(HttpRequest request) async {
         };
       } else if (name == "calendar-home-set") {
         results[e.name] = (XML.XmlBuilder out) {
-          if (!path.endsWith(".ics")) {
-            out.element("href", namespace: "DAV:", nest: pathlib.join(pathlib.dirname(path), pathlib.basename(path) + ".ics"));
-          }
+          out.element("href", namespace: "DAV:", nest: pathlib.join(pathlib.dirname(path), pathlib.basename(path) + "/"));
         };
       } else if (name == "current-user-principal" && false) {
         results[e.name] = (XML.XmlBuilder out) {
@@ -1012,9 +1058,9 @@ handleHttpRequest(HttpRequest request) async {
         };
       } else if (name == "supported-report-set") {
         results[e.name] = (XML.XmlBuilder out) {
-          for (var name in const ["calendar-multiget"]) {
+          for (var name in const ["calendar-multiget", "calendar-query"]) {
             out.element("supported-report", namespace: "DAV:", nest: () {
-              out.element("report", namespace: "DAV:", nest: name);
+              out.element("report", namespace: "urn:ietf:params:xml:ns:caldav", nest: name);
             });
           }
         };
@@ -1024,11 +1070,11 @@ handleHttpRequest(HttpRequest request) async {
         };
       } else if (name == "principal-collection-set") {
         results[e.name] = (XML.XmlBuilder out) {
-          out.element("href", namespace: "DAV:", nest: pathlib.join(pathlib.dirname(path), pathlib.basename(path) + ".ics"));
+          out.element("href", namespace: "DAV:", nest: pathlib.join(pathlib.dirname(path), pathlib.basename(path) + "/"));
         };
       } else if (name == "supported-calendar-component-set") {
         results[e.name] = (XML.XmlBuilder out) {
-          out.element("comp", namespace: "DAV:", attributes: {
+          out.element("comp", namespace: "urn:ietf:params:xml:ns:caldav", attributes: {
             "name": "VEVENT"
           });
         };
@@ -1038,7 +1084,6 @@ handleHttpRequest(HttpRequest request) async {
         };
       } else if (name == "resourcetype") {
         results[e.name] = (XML.XmlBuilder out) {
-          out.element("collection");
           out.element("calendar");
         };
       } else if (name == "sync-level") {
@@ -1063,10 +1108,11 @@ handleHttpRequest(HttpRequest request) async {
 
     out.element("multistatus", namespace: "DAV:", namespaces: {
       "DAV:": "",
-      "http://calendarserver.org/ns/": "CS"
+      "http://calendarserver.org/ns/": "CS",
+      "urn:ietf:params:xml:ns:caldav": "C"
     }, nest: () {
       out.element("href", namespace: "DAV:",
-          nest: path);
+          nest: pathlib.join(pathlib.dirname(path), pathlib.basename(path) + ".ics"));
       out.element("sync-token", namespace: "DAV:",
           nest: syncTokenUri.toString());
       out.element("response", namespace: "DAV:", nest: () {
@@ -1074,7 +1120,17 @@ handleHttpRequest(HttpRequest request) async {
         out.element("propstat", namespace: "DAV:", nest: () {
           out.element("prop", namespace: "DAV:", nest: () {
             for (XML.XmlName key in results.keys) {
-              out.element(key.local, namespace: "DAV:", nest: () {
+              String ns = "DAV:";
+              if (key.local == "getctag") {
+                ns = "http://calendarserver.org/ns/";
+              }
+
+              if (key.local == "supported-calendar-component-set") {
+                ns = "urn:ietf:params:xml:ns:caldav";
+              }
+
+              out.element(key.local, namespace: ns, nest: () {
+
                 if (results[key] is String || results[key] is num) {
                   out.text(results[key]);
                 } else if (results[key] is Function) {
@@ -1141,6 +1197,33 @@ handleHttpRequest(HttpRequest request) async {
     });
 
     await end(out.build().toXmlString(pretty: true), status: 207);
+    return;
+  } else if (path.startsWith("/calendars/") && parts.length >= 2 && (method == "PROPPATCH")) {
+    var input = await request
+        .transform(const Utf8Decoder())
+        .transform(const LineSplitter())
+        .join("\n");
+    print(input);
+    response.headers.contentType =
+        ContentType.parse("application/xml; charset=utf-8");
+    await end("""
+<?xml version='1.0' encoding='UTF-8'?>
+<multistatus xmlns='DAV:'>
+  <response>
+    <href>${path}</href>
+    <propstat>
+      <prop>
+      </prop>
+      <status>HTTP/1.1 403 Forbidden</status>
+    </propstat>
+  </response>
+</multistatus>
+    """, status: 207);
+    return;
+  }
+
+  if (method == "OPTIONS") {
+    await end("Ok.");
     return;
   }
 
