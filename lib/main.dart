@@ -843,7 +843,6 @@ handleHttpRequest(HttpRequest request) async {
         .transform(const Utf8Decoder())
         .transform(const LineSplitter())
         .join("\n");
-    print(input);
     response.headers.contentType =
         ContentType.parse("application/xml; charset=utf-8");
     await end("""
@@ -855,7 +854,7 @@ handleHttpRequest(HttpRequest request) async {
       <prop>
         <displayname>DSA</displayname>
         <B:calendar-home-set xmlns:B="urn:ietf:params:xml:ns:caldav">
-          <href>/calendars/Test/</href>
+          <href>/calendars/</href>
         </B:calendar-home-set>
       </prop>
       <status>HTTP/1.1 200 OK</status>
@@ -983,7 +982,7 @@ handleHttpRequest(HttpRequest request) async {
       await end({}, status: HttpStatus.CREATED);
       return;
     }
-  } else if (path.startsWith("/calendars/") && parts.length >= 2 && (method == "PROPFIND")) {
+  } else if (path.startsWith("/calendars/") && path != "/calendars/" && parts.length >= 2 && (method == "PROPFIND")) {
     String name;
     if (parts.length >= 3) {
       name = parts[2];
@@ -991,13 +990,9 @@ handleHttpRequest(HttpRequest request) async {
       name = "";
     }
 
-    if (name.endsWith(".calendar")) {
-      name = name.substring(0, name.length - 9);
-    }
-
     ICalendarLocalSchedule schedule = findLocalSchedule(name);
 
-    if (name.isNotEmpty && schedule == null) {
+    if (name.isEmpty || schedule == null) {
       await sendNotFound();
       return;
     }
@@ -1028,7 +1023,7 @@ handleHttpRequest(HttpRequest request) async {
 
     Uri syncTokenUri = request.requestedUri;
     syncTokenUri = syncTokenUri
-        .replace(path: pathlib.join(syncTokenUri.path, "sync") + "/");
+        .replace(path: pathlib.join(syncTokenUri.path, "sync") + "/${generateToken()}");
     for (XML.XmlElement e in prop.children.where((x) => x is XML.XmlElement)) {
       var name = e.name.local;
 
@@ -1046,22 +1041,28 @@ handleHttpRequest(HttpRequest request) async {
         };
       } else if (name == "calendar-home-set") {
         results[e.name] = (XML.XmlBuilder out) {
-          out.element("href", namespace: "DAV:", nest: pathlib.join(pathlib.dirname(path), pathlib.basename(path) + "/"));
+          out.element("href", namespace: "DAV:",
+              nest: pathlib.join(
+                  pathlib.dirname(path), pathlib.basename(path) + "/"));
         };
       } else if (name == "current-user-principal" && false) {
         results[e.name] = (XML.XmlBuilder out) {
-          out.element("href", namespace: "DAV:", nest: path);
+          out.element("href", namespace: "DAV:", nest: "/principals/main/");
         };
       } else if (name == "calendar-user-address-set") {
         results[e.name] = (XML.XmlBuilder out) {
-          out.element("href", namespace: "DAV:", nest: path);
+          out.element("href", namespace: "DAV:", nest: "/principals/main/");
         };
       } else if (name == "supported-report-set") {
         results[e.name] = (XML.XmlBuilder out) {
           for (var name in const ["calendar-multiget", "calendar-query"]) {
-            out.element("supported-report", namespace: "DAV:", nest: () {
-              out.element("report", namespace: "urn:ietf:params:xml:ns:caldav", nest: name);
-            });
+            out.element(
+                "supported-report", namespace: "urn:ietf:params:xml:ns:caldav",
+                nest: () {
+                  out.element(
+                      "report", namespace: "urn:ietf:params:xml:ns:caldav",
+                      nest: name);
+                });
           }
         };
       } else if (name == "calendar-collection-set") {
@@ -1070,11 +1071,12 @@ handleHttpRequest(HttpRequest request) async {
         };
       } else if (name == "principal-collection-set") {
         results[e.name] = (XML.XmlBuilder out) {
-          out.element("href", namespace: "DAV:", nest: pathlib.join(pathlib.dirname(path), pathlib.basename(path) + "/"));
+          out.element("href", namespace: "DAV:", nest: "/");
         };
       } else if (name == "supported-calendar-component-set") {
         results[e.name] = (XML.XmlBuilder out) {
-          out.element("comp", namespace: "urn:ietf:params:xml:ns:caldav", attributes: {
+          out.element(
+              "comp", namespace: "urn:ietf:params:xml:ns:caldav", attributes: {
             "name": "VEVENT"
           });
         };
@@ -1084,7 +1086,7 @@ handleHttpRequest(HttpRequest request) async {
         };
       } else if (name == "resourcetype") {
         results[e.name] = (XML.XmlBuilder out) {
-          out.element("calendar");
+          out.element("calendar", namespace: "urn:ietf:params:xml:ns:caldav");
         };
       } else if (name == "sync-level") {
         results[e.name] = "1";
@@ -1112,7 +1114,8 @@ handleHttpRequest(HttpRequest request) async {
       "urn:ietf:params:xml:ns:caldav": "C"
     }, nest: () {
       out.element("href", namespace: "DAV:",
-          nest: pathlib.join(pathlib.dirname(path), pathlib.basename(path) + ".ics"));
+          nest: pathlib.join(
+              pathlib.dirname(path), pathlib.basename(path) + ".ics"));
       out.element("sync-token", namespace: "DAV:",
           nest: syncTokenUri.toString());
       out.element("response", namespace: "DAV:", nest: () {
@@ -1130,7 +1133,6 @@ handleHttpRequest(HttpRequest request) async {
               }
 
               out.element(key.local, namespace: ns, nest: () {
-
                 if (results[key] is String || results[key] is num) {
                   out.text(results[key]);
                 } else if (results[key] is Function) {
@@ -1147,12 +1149,14 @@ handleHttpRequest(HttpRequest request) async {
         out.element("propstat", namespace: "DAV:", nest: () {
           out.element("prop", namespace: "DAV:", nest: () {
             for (XML.XmlName key in notOut) {
-              if (key.local == "principal-URL" || key.local == "current-user-principal") {
+              if (key.local == "principal-URL" ||
+                  key.local == "current-user-principal") {
                 out.element(key.local, namespace: key.namespaceUri, nest: () {
                   out.element("unauthenticated", namespace: "DAV:");
                 });
               } else if (key.prefix != null) {
-                if (key.namespaceUri != "DAV:" && key.namespaceUri != "http://calendarserver.org/ns/") {
+                if (key.namespaceUri != "DAV:" &&
+                    key.namespaceUri != "http://calendarserver.org/ns/") {
                   try {
                     out.namespace(key.namespaceUri, key.prefix);
                   } catch (e) {}
@@ -1174,7 +1178,8 @@ handleHttpRequest(HttpRequest request) async {
         out.element("response", namespace: "DAV:", nest: () {
           out.element("propstat", namespace: "DAV:", nest: () {
             for (XML.XmlName key in results.keys) {
-              if (!(const ["resourcetype", "getcontentype", "getetag"].contains(key.local))) {
+              if (!(const ["resourcetype", "getcontentype", "getetag", "sync-token"].contains(
+                  key.local))) {
                 continue;
               }
 
@@ -1198,12 +1203,164 @@ handleHttpRequest(HttpRequest request) async {
 
     await end(out.build().toXmlString(pretty: true), status: 207);
     return;
-  } else if (path.startsWith("/calendars/") && parts.length >= 2 && (method == "PROPPATCH")) {
+  } else if (path == "/calendars/" && (method == "PROPFIND")) {
     var input = await request
         .transform(const Utf8Decoder())
         .transform(const LineSplitter())
         .join("\n");
-    print(input);
+
+    if (input.isEmpty) {
+      await end("Ok.");
+      return;
+    }
+
+    logger.fine("[Schedule HTTP] Sent ${request.method} to ${path}:\n${input}");
+
+    XML.XmlDocument doc = XML.parse(input);
+    XML.XmlElement prop = doc.rootElement
+        .findElements("prop", namespace: "DAV:")
+        .first;
+
+    var results = <XML.XmlName, dynamic>{};
+    var out = new XML.XmlBuilder();
+
+    response.headers.contentType =
+        ContentType.parse("application/xml; charset=utf-8");
+
+    out.processing("xml", 'version="1.0" encoding="utf-8"');
+
+    out.element("multistatus", namespace: "DAV:", namespaces: {
+      "DAV:": "",
+      "http://calendarserver.org/ns/": "CS",
+      "urn:ietf:params:xml:ns:caldav": "C"
+    }, nest: () {
+      out.element("response", namespace: "DAV:", nest: () {
+        out.element("href", namespace: "DAV:", nest: path);
+
+        out.element("propstat", namespace: "DAV:", nest: () {
+          out.element("prop", namespace: "DAV:", nest: () {
+            out.element("resourcetype", namespace: "DAV:", nest: () {
+              out.element("collection", namespace: "DAV:");
+            });
+          });
+
+          out.element("status", namespace: "DAV:", nest: "HTTP/1.1 200 OK");
+        });
+      });
+
+      for (ICalendarLocalSchedule schedule in provider.nodes.values.where((x) => x is ICalendarLocalSchedule)) {
+        Uri syncTokenUri = request.requestedUri;
+        syncTokenUri = syncTokenUri
+            .replace(path: pathlib.join(syncTokenUri.path, "sync") + "/${generateToken()}");
+        for (XML.XmlElement e in prop.children.where((x) => x is XML.XmlElement)) {
+          var name = e.name.local;
+
+          if (name == "displayname") {
+            results[e.name] = schedule.displayName;
+          } else if (name == "getctag" || name == "getetag") {
+            results[e.name] = schedule.calculateTag();
+          } else if (name == "principal-URL" && false) {
+            results[e.name] = (XML.XmlBuilder out) {
+              out.element("href", namespace: "DAV:", nest: "/");
+            };
+          } else if (name == "getcontenttype") {
+            results[e.name] = (XML.XmlBuilder out) {
+              out.text("text/calendar; component=vevent");
+            };
+          } else if (name == "calendar-home-set") {
+            results[e.name] = (XML.XmlBuilder out) {
+              out.element("href", namespace: "DAV:", nest: pathlib.join(pathlib.dirname(path), pathlib.basename(path) + "/"));
+            };
+          } else if (name == "current-user-principal" && false) {
+            results[e.name] = (XML.XmlBuilder out) {
+              out.element("href", namespace: "DAV:", nest: "/principals/main/");
+            };
+          } else if (name == "calendar-user-address-set") {
+            results[e.name] = (XML.XmlBuilder out) {
+              out.element("href", namespace: "DAV:", nest: "/principals/main/");
+            };
+          } else if (name == "supported-report-set") {
+            results[e.name] = (XML.XmlBuilder out) {
+              for (var name in const ["calendar-query"]) {
+                out.element("supported-report", namespace: "urn:ietf:params:xml:ns:caldav", nest: () {
+                  out.element("report", namespace: "urn:ietf:params:xml:ns:caldav", nest: name);
+                });
+              }
+            };
+          } else if (name == "calendar-collection-set") {
+            results[e.name] = (XML.XmlBuilder out) {
+              out.element("href", nest: schedule.displayName);
+            };
+          } else if (name == "principal-collection-set") {
+            results[e.name] = (XML.XmlBuilder out) {
+              out.element("href", namespace: "DAV:", nest: "/");
+            };
+          } else if (name == "supported-calendar-component-set") {
+            results[e.name] = (XML.XmlBuilder out) {
+              out.element("comp", namespace: "urn:ietf:params:xml:ns:caldav", attributes: {
+                "name": "VEVENT"
+              });
+            };
+          } else if (name == "sync-token") {
+            results[e.name] = (XML.XmlBuilder out) {
+              out.text(syncTokenUri.toString());
+            };
+          } else if (name == "resourcetype") {
+            results[e.name] = (XML.XmlBuilder out) {
+              out.element("calendar", namespace: "urn:ietf:params:xml:ns:caldav");
+            };
+          } else if (name == "sync-level") {
+            results[e.name] = "1";
+          } else if (name == "owner" || name == "source") {
+            results[e.name] = (XML.XmlBuilder out) {
+              out.element("href", namespace: "DAV:", nest: path);
+            };
+          } else if (name == "calendar-description") {
+            results[e.name] = schedule.displayName;
+          } else if (name == "calendar-color") {
+            results[e.name] = "FF5800";
+          }
+        }
+
+        out.element("response", namespace: "DAV:", nest: () {
+          out.element("href", namespace: "DAV:", nest: "/calendars/${schedule.displayName}/");
+          out.element("propstat", namespace: "DAV:", nest: () {
+            out.element("prop", namespace: "DAV:", nest: () {
+              for (XML.XmlName key in results.keys) {
+                String ns = "DAV:";
+                if (key.local == "getctag") {
+                  ns = "http://calendarserver.org/ns/";
+                }
+
+                if (key.local == "supported-calendar-component-set") {
+                  ns = "urn:ietf:params:xml:ns:caldav";
+                }
+
+                out.element(key.local, namespace: ns, nest: () {
+
+                  if (results[key] is String || results[key] is num) {
+                    out.text(results[key]);
+                  } else if (results[key] is Function) {
+                    results[key](out);
+                  }
+                });
+              }
+            });
+
+
+            out.element("status", namespace: "DAV:", nest: "HTTP/1.1 200 OK");
+          });
+        });
+      }
+    });
+
+    await end(out.build().toXmlString(pretty: true), status: 207);
+    return;
+  } else if (path.startsWith("/calendars/") && (method == "PROPPATCH")) {
+    var input = await request
+        .transform(const Utf8Decoder())
+        .transform(const LineSplitter())
+        .join("\n");
     response.headers.contentType =
         ContentType.parse("application/xml; charset=utf-8");
     await end("""
@@ -1218,6 +1375,37 @@ handleHttpRequest(HttpRequest request) async {
     </propstat>
   </response>
 </multistatus>
+    """, status: 207);
+    return;
+  } else if (path.startsWith("/calendars/") && path != "/calendars/" && method == "REPORT") {
+    var input = await request
+        .transform(const Utf8Decoder())
+        .transform(const LineSplitter())
+        .join("\n");
+
+    var name = parts[2];
+    ICalendarLocalSchedule sched = findLocalSchedule(name);
+
+    var out = new XML.XmlBuilder();
+    out.element("multistatus", namespaces: {
+      "DAV:": "",
+      "urn:ietf:params:xml:ns:caldav": "c",
+    }, namespace: "DAV:", nest: () {
+      out.element("response", namespace: "DAV:", nest: () {
+        out.element("href", namespace: "DAV:", nest: path);
+        out.element("propstat", namespace: "DAV:", nest: () {
+          out.element("prop", nest: () {
+            out.element("calendar-data", namespace: "urn:ietf:params:xml:ns:caldav", nest: sched.generatedCalendar);
+          });
+
+          out.element("status", namespace: "DAV:", nest: "HTTP/1.1 200 OK");
+        });
+      });
+    });
+
+    await end("""
+<?xml version="1.0" encoding="UTF-8"?>
+${out.build().toXmlString()}
     """, status: 207);
     return;
   }
