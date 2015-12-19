@@ -1055,7 +1055,7 @@ handleHttpRequest(HttpRequest request) async {
         };
       } else if (name == "supported-report-set") {
         results[e.name] = (XML.XmlBuilder out) {
-          for (var name in const ["calendar-multiget", "calendar-query"]) {
+          for (var name in const ["calendar-query"]) {
             out.element(
                 "supported-report", namespace: "urn:ietf:params:xml:ns:caldav",
                 nest: () {
@@ -1174,7 +1174,7 @@ handleHttpRequest(HttpRequest request) async {
         });
       });
 
-      if (request.headers.value("depth") != "0" && false) {
+      if (request.headers.value("depth") != "0") {
         out.element("response", namespace: "DAV:", nest: () {
           out.element("propstat", namespace: "DAV:", nest: () {
             for (XML.XmlName key in results.keys) {
@@ -1383,6 +1383,8 @@ handleHttpRequest(HttpRequest request) async {
         .transform(const LineSplitter())
         .join("\n");
 
+    print(input);
+
     var name = parts[2];
     ICalendarLocalSchedule sched = findLocalSchedule(name);
 
@@ -1395,7 +1397,12 @@ handleHttpRequest(HttpRequest request) async {
         out.element("href", namespace: "DAV:", nest: path);
         out.element("propstat", namespace: "DAV:", nest: () {
           out.element("prop", nest: () {
-            out.element("calendar-data", namespace: "urn:ietf:params:xml:ns:caldav", nest: sched.generatedCalendar);
+            out.element("getcontenttype", namespace: "DAV:", nest: "text/calendar; component=vevent");
+            out.element("getetag", namespace: "DAV:", nest: sched.calculateTag());
+
+            if (input.contains("calendar-data")) {
+              out.element("calendar-data", namespace: "urn:ietf:params:xml:ns:caldav", nest: sched.generatedCalendar);
+            }
           });
 
           out.element("status", namespace: "DAV:", nest: "HTTP/1.1 200 OK");
