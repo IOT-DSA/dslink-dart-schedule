@@ -171,6 +171,7 @@ class EventDescription {
   DateTime start;
   DateTime end;
   bool isRecurring = false;
+  Map rule;
 
   EventDescription(this.name, this.value);
 

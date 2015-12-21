@@ -564,6 +564,8 @@ class Event {
       e.end = end;
     }
 
+    e.rule = rrule;
+
     e.duration = duration;
 
     return e;

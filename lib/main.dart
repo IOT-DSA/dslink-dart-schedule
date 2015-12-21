@@ -40,7 +40,8 @@ main(List<String> args) async {
     }),
     "event": (String path) => new EventNode(path),
     "addLocalEvent": (String path) => new AddLocalEventNode(path),
-    "httpPort": (String path) => new HttpPortNode(path)
+    "httpPort": (String path) => new HttpPortNode(path),
+    "editLocalEvent": (String path) => new EditLocalEventNode(path)
   }, autoInitialize: false);
 
   loadQueue = [];
@@ -139,6 +140,7 @@ class AddICalRemoteScheduleNode extends SimpleNode {
 
 class EventNode extends SimpleNode {
   EventDescription description;
+  bool flagged = false;
 
   EventNode(String path) : super(path);
 
@@ -146,7 +148,7 @@ class EventNode extends SimpleNode {
   onRemoving() {
     var p = new Path(path);
     var node = link.getNode(p.parent.parent.path);
-    if (node is ICalendarLocalSchedule) {
+    if (node is ICalendarLocalSchedule && !flagged) {
       node.storedEvents.removeWhere((x) => x["name"] == description.name);
       node.loadSchedule();
     }
@@ -158,6 +160,71 @@ class EventNode extends SimpleNode {
       description = input["?description"];
     }
     super.load(input);
+  }
+}
+
+class EditLocalEventNode extends SimpleNode {
+  EditLocalEventNode(String path) : super(path);
+
+  @override
+  onInvoke(Map<String, dynamic> params) async {
+    var name = params["name"];
+    var timeRangeString = params["time"];
+    var ruleString = params["rule"];
+    var val = params["value"];
+
+    var p = new Path(path);
+
+    ICalendarLocalSchedule schedule = link.getNode(p.parent.parent.parent.path);
+
+    String idx = p.parent.name;
+
+    DateTime start;
+    DateTime end;
+    Map rule;
+
+    {
+      if (timeRangeString is String) {
+        var parts = timeRangeString.split("/");
+        start = DateTime.parse(parts[0]);
+        end = DateTime.parse(parts[1]);
+      }
+    }
+
+    if (ruleString is String) {
+      rule = ical.tokenizePropertyList(ruleString);
+    }
+
+    if (int.parse(idx, onError: (source) => null) != null) {
+      var i = int.parse(idx) - 1;
+      Map m = schedule.storedEvents[i];
+      schedule.storedEvents.remove(m);
+
+      if (name is String) {
+        m["name"] = name;
+      }
+
+      if (start is DateTime) {
+        m["start"] = start.toIso8601String();
+      }
+
+      if (end is DateTime) {
+        m["end"] = end.toIso8601String();
+      }
+
+      if (rule is Map) {
+        m["rule"] = rule;
+      }
+
+      if (params.containsKey("value")) {
+        m["value"] = parseInputValue(val);
+      }
+
+      schedule.storedEvents.add(m);
+      await schedule.loadSchedule();
+    } else {
+      throw new Exception("Failed to resolve event.");
+    }
   }
 }
 
@@ -306,6 +373,10 @@ class ICalendarRemoteSchedule extends SimpleNode {
 
       link.removeNode("${path}/error");
       link.getNode("${path}/events").children.keys.toList().forEach((x) {
+        var n = link.getNode("${path}/events/${x}");
+        if (n is EventNode) {
+          n.flagged = true;
+        }
         link.removeNode("${path}/events/${x}");
       });
 
@@ -558,6 +629,11 @@ class ICalendarLocalSchedule extends SimpleNode {
       link.removeNode("${path}/error");
       link.getNode("${path}/events").children.keys.toList().forEach((x) {
         if (int.parse(x, onError: (source) => null) != null) {
+          var n = link.getNode("${path}/events/${x}");
+          if (n is EventNode) {
+            n.flagged = true;
+          }
+
           link.removeNode("${path}/events/${x}");
         }
       });
@@ -596,6 +672,7 @@ class ICalendarLocalSchedule extends SimpleNode {
       icalProvider = new ical.ICalendarProvider(
           events.map((x) => new ical.EventInstance(x)).toList()
       );
+
       state = new ValueCalendarState(icalProvider);
       state.defaultValue = new ValueAtTime.forDefault(defaultValue);
 
@@ -649,8 +726,57 @@ class ICalendarLocalSchedule extends SimpleNode {
 
         var map = event.asNode(i);
 
-        SimpleNode eventNode = link.addNode("${path}/events/${i}", map);
+        var rp = "${path}/events/${i}";
+        SimpleNode eventNode = link.addNode(rp, map);
         eventNode.updateList(r"$name");
+
+        if (event.rule == null) {
+          event.rule = {};
+        }
+
+        String ruleString = "";
+
+        {
+          for (var key in event.rule.keys) {
+            var val = event.rule[key];
+
+            ruleString += "${key}=${val}";
+          }
+
+          if (ruleString.endsWith(";")) {
+            ruleString = ruleString.substring(0, ruleString.length - 1);
+          }
+        }
+
+        link.addNode("${rp}/edit", {
+          r"$name": "Edit",
+          r"$params": [
+            {
+              "name": "name",
+              "type": "string",
+              "default": event.name
+            },
+            {
+              "name": "time",
+              "type": "string",
+              "editor": "daterange",
+              "default": "${event.start}/${event.end}"
+            },
+            {
+              "name": "value",
+              "type": "dynamic",
+              "default": event.value
+            },
+            {
+              "name": "rule",
+              "type": "string",
+              "placeholder": "FREQ=DAILY",
+              "default": ruleString
+            }
+          ],
+          r"$is": "editLocalEvent",
+          r"$invokable": "write"
+        });
       }
     } catch (e, stack) {
       link.addNode("${path}/error", {
