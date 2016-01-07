@@ -1509,7 +1509,7 @@ handleHttpRequest(HttpRequest request) async {
         .transform(const LineSplitter())
         .join("\n");
 
-    print(input);
+    logger.fine(input);
 
     var name = parts[2];
     ICalendarLocalSchedule sched = findLocalSchedule(name);
@@ -1520,7 +1520,7 @@ handleHttpRequest(HttpRequest request) async {
       "urn:ietf:params:xml:ns:caldav": "c",
     }, namespace: "DAV:", nest: () {
       out.element("response", namespace: "DAV:", nest: () {
-        out.element("href", namespace: "DAV:", nest: path);
+        out.element("href", namespace: "DAV:", nest: "/calendars/${name}.ics");
         out.element("propstat", namespace: "DAV:", nest: () {
           out.element("prop", nest: () {
             out.element("getcontenttype", namespace: "DAV:", nest: "text/calendar; component=vevent");
