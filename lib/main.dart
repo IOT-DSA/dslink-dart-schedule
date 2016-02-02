@@ -15,7 +15,9 @@ import "package:dslink_schedule/calendar.dart";
 import "package:dslink_schedule/utils.dart";
 
 import "package:http/http.dart" as http;
+
 import "package:timezone/standalone.dart";
+import "package:timezone/src/env.dart" as TimezoneEnv;
 
 import "package:path/path.dart" as pathlib;
 
@@ -28,7 +30,7 @@ http.Client httpClient = new http.Client();
 SimpleNodeProvider provider;
 
 main(List<String> args) async {
-  await initializeTimeZone();
+  String basePath = Directory.current.path;
 
   link = new LinkProvider(args, "Schedule-", profiles: {
     "addiCalRemoteSchedule": (String path) => new AddICalRemoteScheduleNode(path),
@@ -43,6 +45,28 @@ main(List<String> args) async {
     "httpPort": (String path) => new HttpPortNode(path),
     "editLocalEvent": (String path) => new EditLocalEventNode(path)
   }, autoInitialize: false);
+
+  link.configure(optionsHandler: (opts) {
+    if (opts["base-path"] != null) {
+      basePath = opts["base-path"];
+    }
+  });
+
+  try {
+    String tzPath = pathlib.join(
+      basePath,
+      'packages',
+      'timezone',
+      'data',
+      TimezoneEnv.tzDataDefaultFilename
+    );
+
+    File file = new File(tzPath);
+    List<int> bytes = await file.readAsBytes();
+    await TimezoneEnv.initializeDatabase(bytes);
+  } catch (e, stack) {
+    logger.warning("Failed to load timezone data", e, stack);
+  }
 
   loadQueue = [];
 
