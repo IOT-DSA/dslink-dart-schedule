@@ -16,7 +16,6 @@ import "package:dslink_schedule/utils.dart";
 
 import "package:http/http.dart" as http;
 
-import "package:timezone/standalone.dart";
 import "package:timezone/src/env.dart" as TimezoneEnv;
 
 import "package:path/path.dart" as pathlib;
@@ -222,7 +221,7 @@ class EditLocalEventNode extends SimpleNode {
     if (int.parse(idx, onError: (source) => null) != null) {
       var i = int.parse(idx) - 1;
       Map m = schedule.storedEvents[i];
-      schedule.storedEvents.remove(m);
+      int myidx = schedule.storedEvents.indexOf(m);
 
       if (name is String) {
         m["name"] = name;
@@ -244,7 +243,12 @@ class EditLocalEventNode extends SimpleNode {
         m["value"] = parseInputValue(val);
       }
 
-      schedule.storedEvents.add(m);
+      if (myidx >= 0) {
+        schedule.storedEvents[myidx] = m;
+      } else {
+        schedule.storedEvents.add(m);
+      }
+
       await schedule.loadSchedule();
     } else {
       throw new Exception("Failed to resolve event.");
