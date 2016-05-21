@@ -12,6 +12,9 @@ class ScheduleDSLink {
           AddRemoteCalendarNode.isType: (path) =>
               new AddRemoteCalendarNode(path)
         },
+        defaultNodes: <String, dynamic>{
+          AddRemoteCalendarNode.pathName: AddRemoteCalendarNode.definition()
+        },
         isResponder: true,
         autoInitialize: false);
   }
