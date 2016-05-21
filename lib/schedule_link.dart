@@ -12,8 +12,7 @@ class ScheduleDSLink {
           AddRemoteCalendarNode.isType: (path) =>
               new AddRemoteCalendarNode(path)
         },
-        isRequester: true,
-        isResponder: false,
+        isResponder: true,
         autoInitialize: false);
   }
 
