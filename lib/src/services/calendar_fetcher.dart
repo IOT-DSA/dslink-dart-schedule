@@ -1,6 +1,6 @@
 import 'package:http/http.dart';
 import 'dart:async';
-import 'calendar.dart';
+import '../calendar.dart';
 import 'dart:convert';
 
 class CalendarFetcher {
@@ -9,15 +9,14 @@ class CalendarFetcher {
   Future<Calendar> fetchRemoteCalendar(Uri uri) async {
     _client = new Client();
 
-
     final response = await _client.get(uri);
 
     if (response.statusCode > 200) {
       throw new Exception('Cannot fetch the remote calendar at $uri');
     }
 
-    final decodedResponse = JSON.decode(response);
+    final decodedResponse = JSON.decode(response.body);
 
-    print (decodedResponse);
+    print(decodedResponse);
   }
 }

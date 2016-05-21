@@ -1,4 +1,6 @@
 import 'package:dslink/dslink.dart';
+import 'package:dslink_schedule/services.dart';
+import 'package:di/di.dart';
 
 class AddRemoteCalendarNode extends SimpleNode {
   static const String isType = 'addRemoteCalendarNode';
@@ -27,11 +29,19 @@ class AddRemoteCalendarNode extends SimpleNode {
         ]
       };
 
-  AddRemoteCalendarNode(String path) : super(path);
+  CalendarFetcher _calendarFetcher;
+
+  AddRemoteCalendarNode(String path, ModuleInjector injector) : super(path) {
+    _calendarFetcher = injector.get(CalendarFetcher);
+  }
 
   @override
   dynamic onInvoke(Map<String, dynamic> params) async {
     final result = <String, dynamic>{_success: false, _message: ''};
 
+    final calendarName = params[_name];
+    final calendarUrl = params[_url];
+
+    await _calendarFetcher.fetchRemoteCalendar(calendarUrl.toString());
   }
 }
