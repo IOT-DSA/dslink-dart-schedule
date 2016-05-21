@@ -9,10 +9,10 @@ import "package:dslink/dslink.dart";
 import "package:dslink/nodes.dart";
 import "package:dslink/utils.dart";
 
-import "package:dslink_schedule/ical.dart" as ical;
-import "package:dslink_schedule/calendar.dart";
+import "package:dslink_schedule/src/ical.dart" as ical;
+import "package:dslink_schedule/src/calendar.dart";
 
-import "package:dslink_schedule/utils.dart";
+import "package:dslink_schedule/src/utils.dart";
 
 import "package:http/http.dart" as http;
 

@@ -1,7 +1,7 @@
 import "dart:io";
 
-import "package:dslink_schedule/calendar.dart";
-import "package:dslink_schedule/ical.dart";
+import "package:dslink_schedule/src/calendar.dart";
+import "package:dslink_schedule/src/ical.dart";
 
 main() async {
   var file = new File.fromUri(Platform.script.resolve("lights.ics"));

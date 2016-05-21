@@ -1,4 +1,4 @@
-import "package:dslink_schedule/ical.dart";
+import "package:dslink_schedule/src/ical.dart";
 
 String input = """
 BEGIN:VCALENDAR

@@ -8,13 +8,12 @@ class ScheduleDSLink {
   LinkProvider _linkProvider;
   ModuleInjector _injector;
 
-
   ScheduleDSLink.withDefaultParams() {
     _injector = new ModuleInjector([diModule]);
 
     _linkProvider = new LinkProvider(
         ['b', 'http://localhost:8080/conn'], 'Schedule-',
-        profiles: <String, dynamic>{
+        profiles: <String, NodeFactory>{
           AddRemoteCalendarNode.isType: (path) =>
               new AddRemoteCalendarNode(path, _injector)
         },
@@ -31,4 +30,3 @@ class ScheduleDSLink {
     await _linkProvider.connect();
   }
 }
-

@@ -39,9 +39,10 @@ class AddRemoteCalendarNode extends SimpleNode {
   dynamic onInvoke(Map<String, dynamic> params) async {
     final result = <String, dynamic>{_success: false, _message: ''};
 
-    final calendarName = params[_name];
-    final calendarUrl = params[_url];
+    final calendarName = params[_name] as String;
+    final calendarUrl = params[_url] as String;
 
-    await _calendarFetcher.fetchRemoteCalendar(calendarUrl.toString());
+    final calendar = await _calendarFetcher.fetchRemoteCalendar(calendarUrl);
+    var bob = 12;
   }
 }
