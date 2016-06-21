@@ -757,7 +757,8 @@ class ICalendarLocalSchedule extends SimpleNode {
         var map = event.asNode(i);
 
         var rp = "${path}/events/${i}";
-        SimpleNode eventNode = link.addNode(rp, map);
+        addOrUpdateNode(link.provider, rp, map);
+        SimpleNode eventNode = link.getNode(rp);
         eventNode.updateList(r"$is");
 
         if (event.rule == null) {
@@ -778,7 +779,7 @@ class ICalendarLocalSchedule extends SimpleNode {
           }
         }
 
-        link.addNode("${rp}/edit", {
+        addOrUpdateNode(link.provider, "${rp}/edit", {
           r"$name": "Edit",
           r"$params": [
             {
