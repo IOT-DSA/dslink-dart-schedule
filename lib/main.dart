@@ -249,7 +249,7 @@ class EditLocalEventNode extends SimpleNode {
         schedule.storedEvents.add(m);
       }
 
-      await schedule.loadSchedule();
+      await schedule.loadSchedule(true);
     } else {
       throw new Exception("Failed to resolve event.");
     }
@@ -643,7 +643,7 @@ class ICalendarLocalSchedule extends SimpleNode {
   bool isLoadingSchedule = false;
   String generatedCalendar;
 
-  loadSchedule() async {
+  loadSchedule([bool isUpdate = false]) async {
     if (isLoadingSchedule) {
       while (isLoadingSchedule) {
         await new Future.delayed(const Duration(milliseconds: 50));
@@ -662,7 +662,9 @@ class ICalendarLocalSchedule extends SimpleNode {
             n.flagged = true;
           }
 
-          link.removeNode("${path}/events/${x}");
+          if (!isUpdate) {
+            link.removeNode("${path}/events/${x}");
+          }
         }
       });
 
@@ -698,7 +700,7 @@ class ICalendarLocalSchedule extends SimpleNode {
 
       var events = ical.loadEvents(generatedCalendar);
       icalProvider = new ical.ICalendarProvider(
-          events.map((x) => new ical.EventInstance(x)).toList()
+        events.map((x) => new ical.EventInstance(x)).toList()
       );
 
       state = new ValueCalendarState(icalProvider);
@@ -756,7 +758,7 @@ class ICalendarLocalSchedule extends SimpleNode {
 
         var rp = "${path}/events/${i}";
         SimpleNode eventNode = link.addNode(rp, map);
-        eventNode.updateList(r"$name");
+        eventNode.updateList(r"$is");
 
         if (event.rule == null) {
           event.rule = {};

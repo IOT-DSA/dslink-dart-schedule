@@ -198,9 +198,9 @@ dynamic parseCalendarValue(input, CalendarObject root) {
   String str;
   dynamic val;
   if (input is Map) {
-    str = input["value"];
+    str = input["value"].toString();
   } else {
-    str = input;
+    str = input.toString();
   }
   val = str;
 

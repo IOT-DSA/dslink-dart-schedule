@@ -1,6 +1,7 @@
 library dslink.schedule.utils;
 
 import "dart:async";
+import "package:dslink/responder.dart";
 
 dynamic parseInputValue(input) {
   if (input == null) return null;
@@ -65,4 +66,44 @@ String formatICalendarTime(DateTime time) {
   out += time.minute.toString().padLeft(2, "0");
   out += time.second.toString().padLeft(2, "0");
   return out;
+}
+
+void addOrUpdateNode(SimpleNodeProvider provider, String path, Map<String, dynamic> map) {
+  if (!provider.hasNode(path)) {
+    provider.addNode(path, map);
+    return;
+  }
+
+  SimpleNode node = provider.getNode(path);
+  if (node.configs[r"$is"] != null &&
+    map[r"$is"] != null &&
+    node.configs[r"$is"] != map[r"$is"]) {
+    provider.removeNode(path);
+    provider.addNode(path, map);
+    return;
+  }
+
+  for (String key in map.keys) {
+    var value = map[key];
+    if (key.startsWith(r"$")) {
+      if (node.configs[key] != value) {
+        node.configs[key] = value;
+        node.updateList(key);
+      }
+    } else if (key.startsWith(r"@")) {
+      if (node.attributes[key] != value) {
+        node.attributes[key] = value;
+        node.updateList(key);
+      }
+    } else if (key == "?value") {
+      node.updateValue(value);
+    } else if (value is Map) {
+      var p = path;
+      if (!p.endsWith("/")) {
+        p += "/";
+      }
+      p += key;
+      addOrUpdateNode(provider, p, value);
+    }
+  }
 }
