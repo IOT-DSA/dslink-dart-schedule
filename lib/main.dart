@@ -214,7 +214,7 @@ class EditLocalEventNode extends SimpleNode {
       }
     }
 
-    if (ruleString is String) {
+    if (ruleString is String && ruleString.isNotEmpty) {
       rule = ical.tokenizePropertyList(ruleString);
     }
 
@@ -286,7 +286,7 @@ class AddLocalEventNode extends SimpleNode {
 
     TimeRange range = new TimeRange(start, end);
 
-    if (ruleString != null) {
+    if (ruleString != null && ruleString.toString().isNotEmpty) {
       rule = ical.tokenizePropertyList(ruleString);
     }
 
@@ -755,8 +755,9 @@ class ICalendarLocalSchedule extends SimpleNode {
         i++;
 
         var map = event.asNode(i);
+        var pid = NodeNamer.createName(map["id"]["?value"]);
 
-        var rp = "${path}/events/${i}";
+        var rp = "${path}/events/${pid}";
         addOrUpdateNode(link.provider, rp, map);
         SimpleNode eventNode = link.getNode(rp);
         eventNode.updateList(r"$is");
@@ -771,7 +772,7 @@ class ICalendarLocalSchedule extends SimpleNode {
           for (var key in event.rule.keys) {
             var val = event.rule[key];
 
-            ruleString += "${key}=${val}";
+            ruleString += "${key}=${val};";
           }
 
           if (ruleString.endsWith(";")) {

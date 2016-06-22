@@ -173,6 +173,8 @@ class EventDescription {
   bool isRecurring = false;
   Map rule;
 
+  String uuid;
+
   EventDescription(this.name, this.value);
 
   Map asNode(int i) {
@@ -182,8 +184,8 @@ class EventDescription {
       r"$name": name,
       "id": {
         r"$name": "ID",
-        r"$type": "number",
-        "?value": i
+        r"$type": "string",
+        "?value": uuid == null ? i.toString() : uuid
       },
       "value": {
         r"$name": "Value",

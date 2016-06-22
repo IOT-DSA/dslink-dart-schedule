@@ -511,6 +511,7 @@ List<Event> loadEvents(String input) {
     e.start = getDateTimeFromObject(start);
     e.end = getDateTimeFromObject(end);
     e.rrule = rrule;
+    e.uuid = x.properties["UID"];
     e.parseRule();
     events.add(e);
   }
@@ -539,6 +540,7 @@ class Event {
   dynamic description;
   Rule rule;
   Map rrule;
+  String uuid;
 
   Duration get duration => start.difference(end).abs();
 
@@ -567,6 +569,7 @@ class Event {
     e.rule = rrule;
 
     e.duration = duration;
+    e.uuid = uuid;
 
     return e;
   }
