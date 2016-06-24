@@ -200,7 +200,7 @@ class EditLocalEventNode extends SimpleNode {
 
     ICalendarLocalSchedule schedule = link.getNode(p.parent.parent.parent.path);
 
-    String idx = p.parent.name;
+    String eventId = p.parent.name;
 
     DateTime start;
     DateTime end;
@@ -218,9 +218,8 @@ class EditLocalEventNode extends SimpleNode {
       rule = ical.tokenizePropertyList(ruleString);
     }
 
-    if (int.parse(idx, onError: (source) => null) != null) {
-      var i = int.parse(idx) - 1;
-      Map m = schedule.storedEvents[i];
+    if (eventId != null) {
+      Map m = schedule.storedEvents.firstWhere((x) => x["id"] == eventId);
       int myidx = schedule.storedEvents.indexOf(m);
 
       if (name is String) {

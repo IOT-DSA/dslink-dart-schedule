@@ -10,7 +10,7 @@ import "tz.dart";
 
 import "package:timezone/timezone.dart";
 
-import "package:dslink/utils.dart" show generateBasicId, generateToken;
+import "package:dslink/utils.dart" show generateToken;
 import "package:dslink/common.dart" show unspecified;
 
 class CalendarObject {
