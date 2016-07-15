@@ -10,6 +10,7 @@ abstract class CalendarProvider {
   ValueAtTime next(ValueCalendarState state);
   ValueAtTime current(ValueCalendarState state);
   List<EventDescription> listEvents();
+  List<ValueAtTime> between(ValueCalendarState state, DateTime start, DateTime end);
 }
 
 class ValueCalendarState {
@@ -21,6 +22,14 @@ class ValueCalendarState {
 
   ValueAtTime getNext() {
     return provider.next(this);
+  }
+
+  List<ValueAtTime> getBetween(DateTime start, DateTime end) {
+    return Zone.current.fork(zoneValues: {
+      "mock.time": start
+    }).run(() {
+      return provider.between(this, start, end);
+    });
   }
 
   ValueAtTime getCurrent() {
@@ -119,16 +128,18 @@ class ValueAtTime {
   final Duration duration;
   final EventDescription description;
   final bool isDefault;
+  final String eventId;
 
-  ValueAtTime(this.time, this.value, this.duration, this.description, [this.isDefault = false]);
+  ValueAtTime(this.time, this.value, this.duration, this.description, this.eventId, [this.isDefault = false]);
 
   factory ValueAtTime.forDefault(val) {
     return new ValueAtTime(
-        new DateTime.fromMillisecondsSinceEpoch(0),
-        val,
-        const Duration(days: 36500000),
-        new EventDescription("Default", val),
-        true
+      new DateTime.fromMillisecondsSinceEpoch(0),
+      val,
+      const Duration(days: 36500000),
+      new EventDescription("Default", val),
+      null,
+      true
     );
   }
 
@@ -202,6 +213,42 @@ class EventDescription {
         "@unit": "seconds"
       };
     }
+
+    map["fetchEvents"] = {
+      r"$name": "Fetch Events",
+      r"$invokable": "read",
+      r"$is": "fetchEventsForEvent",
+      r"$params": [
+        {
+          "name": "TimeRange",
+          "type": "string",
+          "editor": "daterange"
+        }
+      ],
+      r"$columns": [
+        {
+          "name": "start",
+          "type": "string"
+        },
+        {
+          "name": "end",
+          "type": "string"
+        },
+        {
+          "name": "duration",
+          "type": "number"
+        },
+        {
+          "name": "event",
+          "type": "string"
+        },
+        {
+          "name": "value",
+          "type": "dynamic"
+        }
+      ],
+      r"$result": "table"
+    };
 
     map["remove"] = {
       r"$name": "Remove",

@@ -42,7 +42,9 @@ main(List<String> args) async {
     "event": (String path) => new EventNode(path),
     "addLocalEvent": (String path) => new AddLocalEventNode(path),
     "httpPort": (String path) => new HttpPortNode(path),
-    "editLocalEvent": (String path) => new EditLocalEventNode(path)
+    "editLocalEvent": (String path) => new EditLocalEventNode(path),
+    "fetchEvents": (String path) => new FetchEventsNode(path),
+    "fetchEventsForEvent": (String path) => new FetchEventsForEventNode(path)
   }, autoInitialize: false);
 
   link.configure(optionsHandler: (opts) {
@@ -582,6 +584,42 @@ class ICalendarLocalSchedule extends SimpleNode {
     link.addNode("${path}/next", {
       r"$name": "Next Value",
       r"$type": "dynamic"
+    });
+
+    link.addNode("${path}/fetchEvents", {
+      r"$name": "Fetch Events",
+      r"$invokable": "read",
+      r"$is": "fetchEvents",
+      r"$params": [
+        {
+          "name": "TimeRange",
+          "type": "string",
+          "editor": "daterange"
+        }
+      ],
+      r"$columns": [
+        {
+          "name": "start",
+          "type": "string"
+        },
+        {
+          "name": "end",
+          "type": "string"
+        },
+        {
+          "name": "duration",
+          "type": "number"
+        },
+        {
+          "name": "event",
+          "type": "string"
+        },
+        {
+          "name": "value",
+          "type": "dynamic"
+        }
+      ],
+      r"$result": "table"
     });
 
     link.addNode("${path}/next_ts", {
@@ -1594,4 +1632,69 @@ ICalendarLocalSchedule findLocalSchedule(String name) {
   }
 
   return null;
+}
+
+class FetchEventsNode extends SimpleNode {
+  FetchEventsNode(String path) : super(path);
+
+  @override
+  onInvoke(Map<String, dynamic> params) async {
+    String timeRangeString = params["TimeRange"];
+    DateTime start;
+    DateTime end;
+
+    {
+      if (timeRangeString is String) {
+        var parts = timeRangeString.split("/");
+        start = DateTime.parse(parts[0]);
+        end = DateTime.parse(parts[1]);
+      }
+    }
+    var p = new Path(path);
+
+    ICalendarLocalSchedule schedule = link.getNode(p.parent.path);
+
+    return schedule.state.getBetween(start, end).map((v) {
+      return [
+        v.time.toIso8601String(),
+        v.endsAt.toIso8601String(),
+        v.duration.inMilliseconds,
+        v.eventId,
+        v.value
+      ];
+    }).toList();
+  }
+}
+
+class FetchEventsForEventNode extends SimpleNode {
+  FetchEventsForEventNode(String path) : super(path);
+
+  @override
+  onInvoke(Map<String, dynamic> params) async {
+    String timeRangeString = params["TimeRange"];
+    DateTime start;
+    DateTime end;
+
+    {
+      if (timeRangeString is String) {
+        var parts = timeRangeString.split("/");
+        start = DateTime.parse(parts[0]);
+        end = DateTime.parse(parts[1]);
+      }
+    }
+    var p = new Path(path);
+
+    ICalendarLocalSchedule schedule = link.getNode(p.parent.parent.parent.path);
+    String thatUuid = p.parent.name;
+
+    return schedule.state.getBetween(start, end).where((v) => v.eventId == thatUuid).map((v) {
+      return [
+        v.time.toIso8601String(),
+        v.endsAt.toIso8601String(),
+        v.duration.inMilliseconds,
+        v.eventId,
+        v.value
+      ];
+    }).toList();
+  }
 }

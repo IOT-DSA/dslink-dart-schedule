@@ -743,10 +743,11 @@ class ICalendarProvider extends CalendarProvider {
       var value = e.event.extractValue();
       thisEvent: while (cloned.moveNext()) {
         var v = new ValueAtTime(
-            cloned.current.time,
-            value,
-            e.event.duration,
-            e.event.describe()
+          cloned.current.time,
+          value,
+          e.event.duration,
+          e.event.describe(),
+          e.event.uuid
         );
 
         if (v.hasAlreadyHappened) {
@@ -780,17 +781,24 @@ class ICalendarProvider extends CalendarProvider {
   ValueAtTime queued;
 
   @override
-  ValueAtTime next(ValueCalendarState state) {
+  ValueAtTime next(ValueCalendarState state, {int skip: 0}) {
     var queue = <EventInstance, ValueAtTime>{};
     for (var e in events) {
       var cloned = e.iterator.clone();
+      var i = 0;
       thisEvent: while (cloned.moveNext()) {
+        i++;
+        if (skip >= i) {
+          continue;
+        }
+
         var value = e.event.extractValue();
         var v = new ValueAtTime(
-            cloned.current.time,
-            value,
-            e.event.duration,
-            e.event.describe()
+          cloned.current.time,
+          value,
+          e.event.duration,
+          e.event.describe(),
+          e.event.uuid
         );
 
         if (v.hasAlreadyHappened) {
@@ -810,17 +818,20 @@ class ICalendarProvider extends CalendarProvider {
     list.sort((a, b) => b.time.compareTo(a.time));
     var last = list.last;
 
-    if (queued != null && queued.isHappeningNow && queued.endsAt.isBefore(last.time)) {
-      return new ValueAtTime(
+    if (skip == 0) {
+      if (queued != null && queued.isHappeningNow && queued.endsAt.isBefore(last.time)) {
+        return new ValueAtTime(
           queued.endsAt,
           state.defaultValue.value,
           queued.endsAt.difference(last.time).abs(),
-          state.defaultValue.description
-      );
-    }
+          state.defaultValue.description,
+          state.defaultValue.eventId
+        );
+      }
 
-    if (queued != null && !queued.hasAlreadyHappened) {
-      return queued;
+      if (queued != null && !queued.hasAlreadyHappened) {
+        return queued;
+      }
     }
 
     return last;
@@ -831,6 +842,23 @@ class ICalendarProvider extends CalendarProvider {
     return events.map((x) {
       return x.event.describe();
     }).toList();
+  }
+
+  @override
+  List<ValueAtTime> between(ValueCalendarState state, DateTime start, DateTime end) {
+    var list = <ValueAtTime>[];
+    var i = 0;
+    ValueAtTime last;
+    while (true) {
+      var n = next(state, skip: i);
+      if (n == null || n.endsAt.isAfter(end) || n == last) {
+        break;
+      }
+      list.add(n);
+      i++;
+      last = n;
+    }
+    return list;
   }
 }
 
