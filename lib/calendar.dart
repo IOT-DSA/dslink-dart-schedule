@@ -250,6 +250,26 @@ class EventDescription {
       r"$result": "table"
     };
 
+    String ruleString = "";
+
+    {
+      for (var key in rule.keys) {
+        var val = rule[key];
+
+        ruleString += "${key}=${val};";
+      }
+
+      if (ruleString.endsWith(";")) {
+        ruleString = ruleString.substring(0, ruleString.length - 1);
+      }
+    }
+
+    map["rule"] = {
+      r"$name": "Rule",
+      r"$type": "string",
+      "?value": ruleString
+    };
+
     map["remove"] = {
       r"$name": "Remove",
       r"$invokable": "write",
