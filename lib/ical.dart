@@ -293,6 +293,26 @@ Weekday iCalWeekdayToEnum(String input) {
   return null;
 }
 
+String genericWeekdayToICal(String input) {
+  input = input.toString().toUpperCase();
+
+  var prefix = input.substring(0, 2);
+
+  if (const [
+    "SU",
+    "MO",
+    "TU",
+    "WE",
+    "TH",
+    "FR",
+    "SA"
+  ].contains(prefix)) {
+    return prefix;
+  }
+
+  return "MO";
+}
+
 class Rule extends IterableBase {
   final RuleFrequency frequency;
   DateTime start;
@@ -463,11 +483,13 @@ class RuleTimeIterator extends Iterator<EventTiming> {
     return current != null;
   }
 
-  RuleTimeIterator clone() {
+  RuleTimeIterator clone([bool reset = false]) {
     var iter = new RuleTimeIterator(rule);
-    iter._count = _count;
-    iter._previousTime = _previousTime;
-    iter._lastTime = _lastTime;
+    if (!reset) {
+      iter._count = _count;
+      iter._previousTime = _previousTime;
+      iter._lastTime = _lastTime;
+    }
     return iter;
   }
 }
@@ -781,10 +803,10 @@ class ICalendarProvider extends CalendarProvider {
   ValueAtTime queued;
 
   @override
-  ValueAtTime next(ValueCalendarState state, {int skip: 0}) {
+  ValueAtTime next(ValueCalendarState state, {int skip: 0, bool reset: false}) {
     var queue = <EventInstance, ValueAtTime>{};
     for (var e in events) {
-      var cloned = e.iterator.clone();
+      var cloned = e.iterator.clone(reset);
       var i = 0;
       thisEvent: while (cloned.moveNext()) {
         i++;
@@ -850,10 +872,16 @@ class ICalendarProvider extends CalendarProvider {
     var i = 0;
     ValueAtTime last;
     while (true) {
-      var n = next(state, skip: i);
+      var n = next(state, skip: i, reset: true);
       if (n == null || n.endsAt.isAfter(end) || n == last) {
         break;
       }
+
+      if (last != null && last.time.isAtSameMomentAs(n.time)) {
+        i++;
+        continue;
+      }
+
       list.add(n);
       i++;
       last = n;

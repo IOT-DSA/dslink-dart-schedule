@@ -603,8 +603,8 @@ class ICalendarLocalSchedule extends SimpleNode {
 
         return new DateTime(
           year,
-          month,
-          day
+          month == null ? 1 : month,
+          day == null ? 1 : day
         );
       }
 
@@ -666,9 +666,9 @@ class ICalendarLocalSchedule extends SimpleNode {
       Map d = e["date"];
 
       DateTime baseDate = new DateTime(
-        d["year"] == null ? new DateTime.now().year : d["year"],
-        d["month"],
-        d["day"]
+        d["year"] == null ? 2000 : d["year"],
+        d["month"] == null ? 1 : d["month"],
+        d["day"] == null ? 1 : d["day"]
       );
 
       String type = "YEARLY";
@@ -688,6 +688,11 @@ class ICalendarLocalSchedule extends SimpleNode {
       var rule = {
         "FREQ": type
       };
+
+      if (d["weekday"] is String) {
+        rule["BYDAY"] = ical.genericWeekdayToICal(d["weekday"].toString());
+        rule["FREQ"] = type = "DAILY";
+      }
 
       List<Map> times = e["times"];
       for (Map t in times) {
@@ -1255,7 +1260,13 @@ class FetchEventsForEventNode extends SimpleNode {
     ICalendarLocalSchedule schedule = link.getNode(p.parent.parent.parent.path);
     String thatUuid = p.parent.name;
 
-    return schedule.state.getBetween(start, end).where((v) => v.eventId == thatUuid).map((v) {
+    var results = schedule.state.getBetween(start, end).where((v) => v.eventId == thatUuid).where((x) {
+      return x.time.isAfter(start) && x.time.isBefore(end);
+    }).toList();
+
+    results.sort((a, b) => a.time.compareTo(b.time));
+
+    results = results.map((v) {
       return [
         v.time.toIso8601String(),
         v.endsAt.toIso8601String(),
@@ -1264,6 +1275,19 @@ class FetchEventsForEventNode extends SimpleNode {
         v.value
       ];
     }).toList();
+
+    var list = [];
+    var set = new Set();
+
+    for (var x in results) {
+      if (set.contains(x[0])) {
+        continue;
+      }
+      set.add(x[0]);
+      list.add(x);
+    }
+
+    return list;
   }
 }
 
@@ -1341,6 +1365,6 @@ class RemoveSpecialEventNode extends SimpleNode {
     var p = new Path(path);
     ICalendarLocalSchedule schedule = link.getNode(p.parent.parent.path);
     schedule.specialEvents.removeWhere((e) => e["id"] == params["Id"]);
-    await schedule.loadSchedule(true);
+    await schedule.loadSchedule(false);
   }
 }
