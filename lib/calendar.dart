@@ -10,7 +10,10 @@ abstract class CalendarProvider {
   ValueAtTime next(ValueCalendarState state);
   ValueAtTime current(ValueCalendarState state);
   List<EventDescription> listEvents();
-  List<ValueAtTime> between(ValueCalendarState state, DateTime start, DateTime end);
+  List<ValueAtTime> between(
+    ValueCalendarState state,
+    DateTime start,
+    DateTime end);
 }
 
 class ValueCalendarState {
@@ -77,7 +80,10 @@ class ValueCalendarState {
       }
 
       if (const bool.fromEnvironment("debug.next.check", defaultValue: false)) {
-        print("[${current.description.name}] Next Check in ${nextCheck.inSeconds} seconds");
+        print(
+          "[${current.description.name}] Next check "
+          " in ${nextCheck.inSeconds} seconds"
+        );
       }
 
       timer = new Timer(nextCheck, () {
@@ -130,7 +136,14 @@ class ValueAtTime {
   final bool isDefault;
   final String eventId;
 
-  ValueAtTime(this.time, this.value, this.duration, this.description, this.eventId, [this.isDefault = false]);
+  ValueAtTime(
+    this.time,
+    this.value,
+    this.duration,
+    this.description,
+    this.eventId, [
+      this.isDefault = false
+    ]);
 
   factory ValueAtTime.forDefault(val) {
     return new ValueAtTime(
@@ -162,12 +175,15 @@ class ValueAtTime {
 
   bool get hasAlreadyHappened {
     var now = TimeUtils.now;
-    return endsAt.isBefore(now) || endsAt.isAtSameMomentAs(now) || endsAt.difference(now).inSeconds == 0;
+    return endsAt.isBefore(now) ||
+      endsAt.isAtSameMomentAs(now) ||
+      endsAt.difference(now).inSeconds == 0;
   }
 
   bool get isHappeningNow {
     var now = TimeUtils.now;
-    return time.isBefore(now) && endsAt.isAfter(now);
+    return time.isBefore(now) &&
+      endsAt.isAfter(now);
   }
 
   @override

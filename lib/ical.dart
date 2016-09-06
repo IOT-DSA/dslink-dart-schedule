@@ -506,7 +506,7 @@ List<Event> loadEvents(String input) {
     }
 
     var e = new Event();
-    e.summary = summary;
+    e.summary = summary == null ? null : summary.toString();
     e.description = description;
     e.start = getDateTimeFromObject(start);
     e.end = getDateTimeFromObject(end);
