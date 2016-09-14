@@ -107,3 +107,15 @@ void addOrUpdateNode(SimpleNodeProvider provider, String path, Map<String, dynam
     }
   }
 }
+
+int toInt(input) {
+  if (input is num) {
+    return input.toInt();
+  }
+
+  if (input is String) {
+    return num.parse(input, (_) => 0.0).toInt();
+  }
+
+  return 0;
+}

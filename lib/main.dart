@@ -632,9 +632,13 @@ class ICalendarLocalSchedule extends SimpleNode {
 
       var timeList = e["times"] is List ? e["times"] : [];
       for (Map t in timeList) {
-        int start = t["start"];
-        int end = t["finish"];
+        int start = toInt(t["start"]);
+        int end = toInt(t["finish"]);
         var val = t["value"];
+
+        if (end == null && t["duration"] != null) {
+          end = start + toInt(t["duration"]);
+        }
 
         var strt = startDate.add(new Duration(milliseconds: start));
         var nd = endDate.add(new Duration(milliseconds: end));
@@ -696,9 +700,13 @@ class ICalendarLocalSchedule extends SimpleNode {
 
       List<Map> times = e["times"];
       for (Map t in times) {
-        int start = t["start"];
-        int finish = t["finish"];
+        int start = toInt(t["start"]);
+        int finish = toInt(t["finish"]);
         var val = t["value"];
+
+        if (finish == null && t["duration"] != null) {
+          finish = start + toInt(t["duration"]);
+        }
 
         var event = new ical.StoredEvent(
           generateToken(),
