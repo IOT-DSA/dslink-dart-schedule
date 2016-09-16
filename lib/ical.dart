@@ -823,7 +823,7 @@ class ICalendarProvider extends CalendarProvider {
           e.event.uuid
         );
 
-        if (v.hasAlreadyHappened) {
+        if (v.hasAlreadyHappened || v.isHappeningNow) {
           continue thisEvent;
         }
         queue[e] = v;
@@ -841,17 +841,9 @@ class ICalendarProvider extends CalendarProvider {
     var last = list.last;
 
     if (skip == 0) {
-      if (queued != null && queued.isHappeningNow && queued.endsAt.isBefore(last.time)) {
-        return new ValueAtTime(
-          queued.endsAt,
-          state.defaultValue.value,
-          queued.endsAt.difference(last.time).abs(),
-          state.defaultValue.description,
-          state.defaultValue.eventId
-        );
-      }
-
-      if (queued != null && !queued.hasAlreadyHappened) {
+      if (queued != null &&
+        !queued.hasAlreadyHappened &&
+        !queued.isHappeningNow) {
         return queued;
       }
     }

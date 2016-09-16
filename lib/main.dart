@@ -643,17 +643,20 @@ class ICalendarLocalSchedule extends SimpleNode {
         var strt = startDate.add(new Duration(milliseconds: start));
         var nd = endDate.add(new Duration(milliseconds: end));
 
-        out.add(
-          new ical.StoredEvent(
-            generateToken(),
-            val,
-            new TimeRange(strt, nd),
-            {
-              "FREQ": _getRecurrence(0),
-              "UNTIL": formatICalendarTime(nd)
-            }
-          )
+        var id = generateToken(length: 10);
+        var oe = new ical.StoredEvent(
+          id,
+          val,
+          new TimeRange(strt, nd),
+          {
+            "FREQ": _getRecurrence(0),
+            "UNTIL": formatICalendarTime(nd)
+          }
         );
+
+        oe.assignID();
+
+        out.add(oe);
       }
     }
     return out;
@@ -704,12 +707,13 @@ class ICalendarLocalSchedule extends SimpleNode {
         int finish = toInt(t["finish"]);
         var val = t["value"];
 
-        if (finish == null && t["duration"] != null) {
+        if (t["duration"] != null) {
           finish = start + toInt(t["duration"]);
         }
 
+        var id = generateToken(length: 30);
         var event = new ical.StoredEvent(
-          generateToken(),
+          id,
           val,
           new TimeRange(
             baseDate.add(new Duration(milliseconds: start)),
@@ -717,6 +721,8 @@ class ICalendarLocalSchedule extends SimpleNode {
           ),
           rule
         );
+
+        event.assignID();
 
         out.add(event);
       }
@@ -1006,7 +1012,7 @@ class ICalendarLocalSchedule extends SimpleNode {
         untilTimer.cancel();
       }
 
-      var func = (ValueAtTime v) {
+      var setNextEvent = (ValueAtTime v) {
         link.val("${path}/current", v.value);
         next = state.getNext();
         if (next != null) {
@@ -1020,14 +1026,20 @@ class ICalendarLocalSchedule extends SimpleNode {
         }
       };
 
-      changerDisposable = state.listen(func);
+      changerDisposable = state.listen(setNextEvent);
 
       untilTimer = new Timer.periodic(const Duration(milliseconds: 500), (_) {
         if (nextTimestamp != null) {
           Duration duration = nextTimestamp.difference(new DateTime.now());
+
           if (duration.isNegative) {
+            var msg = "It's ${new DateTime.now()}, but ${nextTimestamp}"
+              " is the next event for ${path}";
+
+            logger.fine(msg);
+
             if (state.defaultValue != null) {
-              func(state.defaultValue);
+              setNextEvent(state.defaultValue);
             }
             return;
           } else {

@@ -29,7 +29,9 @@ class TimeRange {
   final DateTime start;
   final DateTime end;
 
-  TimeRange(this.start, this.end);
+  final int realDuration;
+
+  TimeRange(this.start, this.end, {this.realDuration});
 
   @override
   String toString() {
