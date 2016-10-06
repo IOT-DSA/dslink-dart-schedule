@@ -1424,9 +1424,10 @@ class TimezoneNode extends SimpleNode {
         new Future(() {
           link.save();
         });
-        return true;
+        return false;
       }
     }
+    return true;
   }
 
   @override
