@@ -882,7 +882,7 @@ class ICalendarProvider extends CalendarProvider {
   }
 }
 
-Future<String> generateCalendar(String name) async {
+Future<String> generateCalendar(String name, [Location zone]) async {
   var lines = [
     "BEGIN:VCALENDAR",
     "PRODID:-//Distributed Services Architecture//Schedule DSLink//EN",
@@ -892,7 +892,9 @@ Future<String> generateCalendar(String name) async {
     "X-WR-CALNAME:${name}"
   ];
 
-  var zone = await findTimezoneOnSystem();
+  if (zone == null) {
+    zone = await findTimezoneOnSystem();
+  }
 
   if (zone == null) {
     zone = UTC;

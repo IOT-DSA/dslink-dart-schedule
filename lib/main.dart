@@ -20,6 +20,7 @@ import "package:timezone/src/env.dart" as TimezoneEnv;
 
 import "package:path/path.dart" as pathlib;
 
+import 'package:timezone/src/location.dart';
 import "package:xml/xml.dart" as XML;
 
 import "package:crypto/crypto.dart";
@@ -49,7 +50,8 @@ main(List<String> args) async {
     "fetchEventsForEvent": (String path) => new FetchEventsForEventNode(path),
     "addLocalSpecialEvent": (String path) => new AddSpecialEventNode(path),
     "fetchSpecialEvents": (String path) => new FetchSpecialEventsNode(path),
-    "removeSpecialEvent": (String path) => new RemoveSpecialEventNode(path)
+    "removeSpecialEvent": (String path) => new RemoveSpecialEventNode(path),
+    "timezone": (String path) => new TimezoneNode(path)
   }, autoInitialize: false);
 
   link.configure(optionsHandler: (opts) {
@@ -563,13 +565,21 @@ class ICalendarRemoteSchedule extends SimpleNode {
 }
 
 class ICalendarLocalSchedule extends SimpleNode {
+  Location timezone;
+
   dynamic get defaultValue => attributes[r"@defaultValue"];
 
   List<Map> storedEvents = [];
   List<Map> specialEvents = [];
   List<Map> weeklyEvents = [];
 
-  ICalendarLocalSchedule(String path) : super(path);
+  ICalendarLocalSchedule(String path) : super(path) {
+    try {
+      timezone = TimezoneEnv.getLocation(getChild("timezone") == null ? TimezoneEnv.local.name : (getChild("timezone") as SimpleNode).value);
+    } catch (e) {
+      timezone = TimezoneEnv.UTC;
+    }
+  }
 
   Disposable changerDisposable;
 
@@ -769,6 +779,17 @@ class ICalendarLocalSchedule extends SimpleNode {
       r"$name": "Next Value",
       r"$type": "dynamic"
     });
+
+    if (link.provider.getNode("${path}/timezone") == null) {
+      link.addNode("${path}/timezone", {
+        r"$name": "Timezone",
+        r"$type": "string",
+        r"$is": "timezone",
+        "?schedule": this,
+        "?value": TimezoneEnv.local.name,
+        r"$writable": "write"
+      });
+    }
 
     link.addNode("${path}/fetchEvents", {
       r"$name": "Fetch Events",
@@ -974,7 +995,7 @@ class ICalendarLocalSchedule extends SimpleNode {
       {
         List<ical.StoredEvent> loadedEvents = generateStoredEvents();
 
-        var data = await ical.generateCalendar(displayName);
+        var data = await ical.generateCalendar(displayName, timezone);
         var tokens = ical.tokenizeCalendar(data);
         object = ical.parseCalendarObjects(tokens);
         rootCalendarObject = object;
@@ -1386,5 +1407,31 @@ class RemoveSpecialEventNode extends SimpleNode {
     ICalendarLocalSchedule schedule = link.getNode(p.parent.parent.path);
     schedule.specialEvents.removeWhere((e) => e["id"] == params["Id"]);
     await schedule.loadSchedule(false);
+  }
+}
+
+class TimezoneNode extends SimpleNode {
+  ICalendarLocalSchedule schedule;
+
+  TimezoneNode(String path) : super(path);
+
+  @override
+  onSetValue(value) {
+    if (value is String) {
+      var loc = TimezoneEnv.getLocation(value);
+      if (loc != null) {
+        schedule.timezone = loc;
+        new Future(() {
+          link.save();
+        });
+        return true;
+      }
+    }
+  }
+
+  @override
+  void load(Map<String, dynamic> map) {
+    schedule = map["?schedule"];
+    super.load(map);
   }
 }

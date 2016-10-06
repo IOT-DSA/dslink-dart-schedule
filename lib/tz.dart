@@ -14,12 +14,14 @@ Future<Location> findTimezoneOnSystem() async {
     var bytes = await file.readAsBytes();
     var locations = tzdbDeserialize(bytes);
     var location = locations.first;
+    setLocalLocation(location);
     return location;
   } catch (e) {
     var now = new DateTime.now();
     for (Location loc in timeZoneDatabase.locations.values) {
       if (loc.currentTimeZone.abbr == now.timeZoneName &&
           loc.currentTimeZone.offset == now.timeZoneOffset.inMilliseconds) {
+        setLocalLocation(loc);
         return loc;
       }
     }
