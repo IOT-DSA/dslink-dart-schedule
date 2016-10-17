@@ -38,7 +38,7 @@ class CalendarObject {
     var tzinfo = properties["VTIMEZONE"];
     if (tzinfo is! List) tzinfo = [tzinfo];
     bool isDaylightSavings = false;
-    var now = new DateTime.now();
+    var now = TimeUtils.now;
     if (now.timeZoneName.contains("DT")) {
       isDaylightSavings = true;
     }

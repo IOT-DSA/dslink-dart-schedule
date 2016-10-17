@@ -1066,10 +1066,10 @@ class ICalendarLocalSchedule extends SimpleNode {
 
       untilTimer = new Timer.periodic(const Duration(milliseconds: 500), (_) {
         if (nextTimestamp != null) {
-          Duration duration = nextTimestamp.difference(new DateTime.now());
+          Duration duration = nextTimestamp.difference(TimeUtils.now);
 
           if (duration.isNegative) {
-            var msg = "It's ${new DateTime.now()}, but ${nextTimestamp}"
+            var msg = "It's ${TimeUtils.now}, but ${nextTimestamp}"
               " is the next event for ${path}";
 
             logger.fine(msg);

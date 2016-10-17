@@ -76,7 +76,7 @@ class ValueCalendarState {
         if (isFirst && defaultValue != null) {
           func(defaultValue);
         }
-        nextCheck = current.time.difference(new DateTime.now());
+        nextCheck = current.time.difference(TimeUtils.now);
       }
 
       if (const bool.fromEnvironment("debug.next.check", defaultValue: false)) {
