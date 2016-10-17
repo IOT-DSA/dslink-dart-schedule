@@ -963,6 +963,18 @@ class ICalendarLocalSchedule extends SimpleNode {
   String generatedCalendar;
 
   loadSchedule([bool isUpdate = false]) async {
+    await runZoned(() async {
+      await _loadSchedule(isUpdate);
+    }, zoneValues: {
+      "mock.time": () {
+        return timezone == null ? new DateTime.now() : new DateTime.fromMillisecondsSinceEpoch(timezone.translate(
+            new DateTime.now().toUtc().millisecondsSinceEpoch
+        ));
+      }
+    });
+  }
+
+  _loadSchedule([bool isUpdate = false]) async {
     if (isLoadingSchedule) {
       while (isLoadingSchedule) {
         await new Future.delayed(const Duration(milliseconds: 50));
