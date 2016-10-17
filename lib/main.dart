@@ -586,7 +586,7 @@ class ICalendarLocalSchedule extends SimpleNode {
   List<ical.StoredEvent> generateStoredEvents() {
     var out = storedEvents
       .map((e) => ical.StoredEvent.decode(e))
-      .map((e) => e != null)
+      .where((e) => e != null)
       .toList();
 
     out.addAll(generateSpecialDateEvents());
@@ -1004,6 +1004,9 @@ class ICalendarLocalSchedule extends SimpleNode {
         }
         List<ical.CalendarObject> fakeEventObjects = object.properties["VEVENT"];
         for (var n in loadedEvents) {
+          if (n == null) {
+            continue;
+          }
           var e = n.toCalendarObject();
           e.parent = object;
           fakeEventObjects.add(n.toCalendarObject());
