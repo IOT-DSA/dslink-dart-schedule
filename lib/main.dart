@@ -1060,6 +1060,14 @@ class ICalendarLocalSchedule extends SimpleNode {
         }
       };
 
+      var firstCurrent = state.getCurrent();
+
+      if (firstCurrent != null) {
+        link.val("${path}/current", firstCurrent.value);
+      } else {
+        link.val("${path}/current", defaultValue);
+      }
+
       changerDisposable = state.listen(setNextEvent);
 
       untilTimer = new Timer.periodic(const Duration(milliseconds: 500), (_) {
@@ -1431,7 +1439,10 @@ class TimezoneNode extends SimpleNode {
   @override
   onSetValue(value) {
     if (value is String) {
-      var loc = TimezoneEnv.getLocation(value);
+      var loc = const [
+        "UTC",
+        "Etc/GMT"
+      ].contains(value) ? TimezoneEnv.UTC : TimezoneEnv.getLocation(value);
       if (loc != null) {
         schedule.timezone = loc;
         new Future(() {
