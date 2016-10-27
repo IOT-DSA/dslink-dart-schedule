@@ -653,7 +653,7 @@ class ICalendarLocalSchedule extends SimpleNode {
         var strt = startDate.add(new Duration(milliseconds: start));
         var nd = endDate.add(new Duration(milliseconds: end));
 
-        var id = generateToken(length: 10);
+        var id = e["id"] is String ? e["id"] : generateToken(length: 10);
         var oe = new ical.StoredEvent(
           id,
           val,
@@ -663,8 +663,6 @@ class ICalendarLocalSchedule extends SimpleNode {
             "UNTIL": formatICalendarTime(nd)
           }
         );
-
-        oe.assignID();
 
         out.add(oe);
       }
@@ -732,7 +730,7 @@ class ICalendarLocalSchedule extends SimpleNode {
           rule
         );
 
-        event.assignID();
+        event.id = e["id"] is String ? e["id"] : generateToken();
 
         out.add(event);
       }
