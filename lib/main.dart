@@ -419,7 +419,7 @@ class ICalendarRemoteSchedule extends SimpleNode {
       // Wait so that the removing of those events can be flushed.
       await new Future.delayed(const Duration(milliseconds: 4));
 
-      var events = ical.loadEvents(content);
+      var events = ical.loadEvents(content, TimezoneEnv.local);
       icalProvider = new ical.ICalendarProvider(
           events.map((x) => new ical.EventInstance(x)).toList()
       );
@@ -607,7 +607,7 @@ class ICalendarLocalSchedule extends SimpleNode {
         String yrn = "year${idx}";
         String mtn = "month${idx}";
         String dyn = "day${idx}";
-        int year = date[yrn] == null ? new DateTime.now().year : date[yrn];
+        int year = date[yrn] == null ? TimeUtils.now.year : date[yrn];
         int month = date[mtn];
         int day = date[dyn];
 
@@ -967,9 +967,7 @@ class ICalendarLocalSchedule extends SimpleNode {
       await _loadSchedule(isUpdate);
     }, zoneValues: {
       "mock.time": () {
-        return timezone == null ? new DateTime.now() : new DateTime.fromMillisecondsSinceEpoch(timezone.translate(
-            new DateTime.now().toUtc().millisecondsSinceEpoch
-        ));
+        return new DateTime.now().toUtc();
       }
     });
   }
@@ -1029,7 +1027,7 @@ class ICalendarLocalSchedule extends SimpleNode {
       ical.serializeCalendar(object, buff);
       generatedCalendar = buff.toString();
 
-      var events = ical.loadEvents(generatedCalendar);
+      var events = ical.loadEvents(generatedCalendar, timezone);
       icalProvider = new ical.ICalendarProvider(
         events.map((x) => new ical.EventInstance(x)).toList()
       );
@@ -1439,6 +1437,7 @@ class TimezoneNode extends SimpleNode {
         new Future(() {
           link.save();
         });
+        schedule.loadSchedule(true);
         return false;
       }
     }

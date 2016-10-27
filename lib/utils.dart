@@ -42,19 +42,18 @@ class TimeRange {
 class TimeUtils {
   static DateTime get now {
     var mocked = Zone.current["mock.time"];
-    if (mocked == null) {
-      return new DateTime.now();
-    }
 
-    if (mocked is DateTime) {
-      return mocked;
-    }
+    DateTime time;
 
     if (mocked is Function) {
-      return mocked();
+      time = mocked();
+    } else if (mocked is DateTime) {
+      time = mocked;
+    } else {
+      time = new DateTime.now();
     }
 
-    return new DateTime.now();
+    return time;
   }
 }
 

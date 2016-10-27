@@ -503,7 +503,7 @@ class EventTiming {
   String toString() => "Event(${time})";
 }
 
-List<Event> loadEvents(String input) {
+List<Event> loadEvents(String input, Location timezone) {
   var tokens = tokenizeCalendar(input);
   var root = parseCalendarObjects(tokens);
   var vevents = root.properties["VEVENT"];
@@ -530,8 +530,9 @@ List<Event> loadEvents(String input) {
     var e = new Event();
     e.summary = summary == null ? null : summary.toString();
     e.description = description;
-    e.start = getDateTimeFromObject(start);
-    e.end = getDateTimeFromObject(end);
+
+    e.start = getDateTimeFromObject(start, timezone);
+    e.end = getDateTimeFromObject(end, timezone);
     e.rrule = rrule;
     e.uuid = x.properties["UID"];
     e.parseRule();
@@ -541,18 +542,25 @@ List<Event> loadEvents(String input) {
   return events;
 }
 
-DateTime getDateTimeFromObject(obj) {
+DateTime getDateTimeFromObject(obj, Location timezone) {
+  DateTime time;
+
   if (obj is List) {
     obj = obj.first;
   }
 
   if (obj is DateTime) {
-    return obj;
+    time = obj;
   } else if (obj is Map && obj["value"] is DateTime) {
-    return obj["value"];
-  } else {
-    return null;
+    time = obj["value"];
   }
+
+  if (time != null && timezone != null) {
+    time = new DateTime.fromMillisecondsSinceEpoch(timezone.translateToUtc(
+        time.millisecondsSinceEpoch
+    ), isUtc: true).toLocal();
+  }
+  return time;
 }
 
 class Event {
