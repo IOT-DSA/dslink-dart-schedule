@@ -43,16 +43,16 @@ class ValueCalendarState {
 
   int lid = 0;
 
-  FunctionDisposable listen(func(ValueAtTime v)) {
+  FunctionDisposable listen(onValueUpdate(ValueAtTime v)) {
     Timer timer;
     Timer timer2;
 
     var id = lid++;
-    var isFirst = true;
 
     check() {
       var current = getCurrent();
       if (current == null) {
+        onValueUpdate(defaultValue);
         return;
       }
 
@@ -64,17 +64,17 @@ class ValueCalendarState {
             timer2.cancel();
           }
           current.deliveredTo.add(id);
-          func(current);
+          onValueUpdate(current);
           timer2 = new Timer(current.duration, () {
             if (defaultValue != null) {
-              func(defaultValue);
+              onValueUpdate(defaultValue);
             }
           });
         }
         nextCheck = current.endsIn;
       } else {
-        if (isFirst && defaultValue != null) {
-          func(defaultValue);
+        if (defaultValue != null) {
+          onValueUpdate(defaultValue);
         }
         nextCheck = current.time.difference(TimeUtils.now);
       }
@@ -92,17 +92,15 @@ class ValueCalendarState {
             timer2.cancel();
           }
           current.deliveredTo.add(id);
-          func(current);
+          onValueUpdate(current);
           timer2 = new Timer(current.duration, () {
             if (defaultValue != null) {
-              func(defaultValue);
+              onValueUpdate(defaultValue);
             }
           });
         }
         check();
       });
-
-      isFirst = false;
     }
 
     check();
