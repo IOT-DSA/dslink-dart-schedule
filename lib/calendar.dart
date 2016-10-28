@@ -48,11 +48,11 @@ class ValueCalendarState {
     Timer timer2;
 
     var id = lid++;
-    var isFirst = true;
 
     check() {
       var current = getCurrent();
       if (current == null) {
+        func(defaultValue);
         return;
       }
 
@@ -73,7 +73,7 @@ class ValueCalendarState {
         }
         nextCheck = current.endsIn;
       } else {
-        if (isFirst && defaultValue != null) {
+        if (defaultValue != null) {
           func(defaultValue);
         }
         nextCheck = current.time.difference(TimeUtils.now);
@@ -101,8 +101,6 @@ class ValueCalendarState {
         }
         check();
       });
-
-      isFirst = false;
     }
 
     check();

@@ -1054,9 +1054,9 @@ class ICalendarLocalSchedule extends SimpleNode {
           link.val("${path}/next_ts", next.time.toIso8601String());
           nextTimestamp = next.time;
         } else {
-          link.val("${path}/next", defaultValue);
-          link.val("${path}/next_ts", v.endsAt.toIso8601String());
-          nextTimestamp = v.endsAt;
+          link.val("${path}/next", null);
+          link.val("${path}/next_ts", null);
+          nextTimestamp = null;
         }
       };
 
@@ -1087,7 +1087,10 @@ class ICalendarLocalSchedule extends SimpleNode {
           } else {
             duration = duration.abs();
           }
+
           link.val("${path}/stc", duration.inSeconds);
+        } else {
+          link.val("${path}/stc", 0);
         }
       });
 
