@@ -556,9 +556,15 @@ DateTime getDateTimeFromObject(obj, Location timezone) {
   }
 
   if (time != null && timezone != null) {
-    time = new DateTime.fromMillisecondsSinceEpoch(timezone.translateToUtc(
+    if (local != null) {
+      time = new DateTime.fromMillisecondsSinceEpoch(
+        local.translate(timezone.translateToUtc(time.millisecondsSinceEpoch))
+      );
+    } else {
+      time = new DateTime.fromMillisecondsSinceEpoch(timezone.translateToUtc(
         time.millisecondsSinceEpoch
-    ), isUtc: true).toLocal();
+      ), isUtc: true).toLocal();
+    }
   }
   return time;
 }

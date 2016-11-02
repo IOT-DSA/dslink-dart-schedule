@@ -19,10 +19,10 @@ Future<Location> findTimezoneOnSystem() async {
   } catch (e) {
     var now = new DateTime.now();
     for (Location loc in timeZoneDatabase.locations.values) {
-      if (loc.currentTimeZone.abbr == now.timeZoneName &&
-          loc.currentTimeZone.offset == now.timeZoneOffset.inMilliseconds) {
-        setLocalLocation(loc);
-        return loc;
+      for (var zone in loc.zones) {
+        if (zone.abbr == now.timeZoneName || zone.offset == now.timeZoneOffset.inMilliseconds) {
+          return loc;
+        }
       }
     }
     return null;

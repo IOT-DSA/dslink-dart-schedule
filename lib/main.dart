@@ -12,6 +12,7 @@ import "package:dslink/utils.dart";
 import "package:dslink_schedule/ical.dart" as ical;
 import "package:dslink_schedule/calendar.dart";
 
+import "package:dslink_schedule/tz.dart";
 import "package:dslink_schedule/utils.dart";
 
 import "package:http/http.dart" as http;
@@ -75,6 +76,8 @@ main(List<String> args) async {
   } catch (e, stack) {
     logger.warning("Failed to load timezone data", e, stack);
   }
+
+  await findTimezoneOnSystem();
 
   loadQueue = [];
 
