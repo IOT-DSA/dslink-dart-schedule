@@ -76,7 +76,7 @@ class ValueCalendarState {
         if (defaultValue != null) {
           onValueUpdate(defaultValue);
         }
-        nextCheck = current.time.difference(TimeUtils.now);
+        nextCheck = current.time.difference(TimeUtils.now).abs();
       }
 
       if (const bool.fromEnvironment("debug.next.check", defaultValue: false)) {

@@ -803,12 +803,6 @@ class ICalendarProvider extends CalendarProvider {
     list.sort((a, b) => b.time.compareTo(a.time));
     var last = list.last;
 
-    for (var k in queue.keys) {
-      if (queue[k] == last) {
-        k.iterator.moveNext();
-      }
-    }
-
     queued = last;
 
     return last;

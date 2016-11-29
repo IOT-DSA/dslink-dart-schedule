@@ -366,7 +366,7 @@ class ICalendarRemoteSchedule extends SimpleNode {
     });
 
     link.addNode("${path}/stc", {
-      r"$name": "Value Changes In",
+      r"$name": "Next Value Timer",
       r"$type": "number",
       "@unit": "seconds"
     });
@@ -834,7 +834,7 @@ class ICalendarLocalSchedule extends SimpleNode {
     });
 
     link.addNode("${path}/stc", {
-      r"$name": "Value Changes In",
+      r"$name": "Next Value Timer",
       r"$type": "number",
       "@unit": "seconds"
     });
@@ -968,7 +968,7 @@ class ICalendarLocalSchedule extends SimpleNode {
       await _loadSchedule(isUpdate);
     }, zoneValues: {
       "mock.time": () {
-        return new DateTime.now().toUtc();
+        return new DateTime.now();
       }
     });
   }
@@ -1203,6 +1203,8 @@ class ICalendarLocalSchedule extends SimpleNode {
     map["@events"] = storedEvents;
     map["@specialEvents"] = specialEvents;
     map["@weeklyEvents"] = weeklyEvents;
+
+    map["timezone"] = (getChild("timezone") as SimpleNode).save();
 
     return map;
   }
