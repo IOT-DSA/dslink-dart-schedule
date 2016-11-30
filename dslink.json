@@ -19,6 +19,10 @@
     },
     "token": {
       "type": "string"
+    },
+    "log": {
+      "type": "enum[info,off,fine,finest,finer]",
+      "default": "info"
     }
   }
 }
