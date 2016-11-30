@@ -75,12 +75,7 @@ class ValueCalendarState {
         nextCheck = current.time.difference(TimeUtils.now).abs();
       }
 
-      if (const bool.fromEnvironment("debug.next.check", defaultValue: false)) {
-        print(
-          "[${current.description.name}] Next check "
-          " in ${nextCheck.inSeconds} seconds"
-        );
-      }
+      logger.fine("Next Check for ${current.description.name} scheduled for ${nextCheck.inSeconds} seconds.");
 
       timer = new Timer(nextCheck, () {
         if (!current.deliveredTo.contains(id)) {
