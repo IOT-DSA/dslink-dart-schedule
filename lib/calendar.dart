@@ -66,16 +66,12 @@ class ValueCalendarState {
           current.deliveredTo.add(id);
           onValueUpdate(current);
           timer2 = new Timer(current.duration, () {
-            if (defaultValue != null) {
-              onValueUpdate(defaultValue);
-            }
+            onValueUpdate(defaultValue);
           });
         }
         nextCheck = current.endsIn;
       } else {
-        if (defaultValue != null) {
-          onValueUpdate(defaultValue);
-        }
+        onValueUpdate(defaultValue);
         nextCheck = current.time.difference(TimeUtils.now).abs();
       }
 
@@ -94,9 +90,7 @@ class ValueCalendarState {
           current.deliveredTo.add(id);
           onValueUpdate(current);
           timer2 = new Timer(current.duration, () {
-            if (defaultValue != null) {
-              onValueUpdate(defaultValue);
-            }
+            onValueUpdate(defaultValue);
           });
         }
         check();
