@@ -150,7 +150,7 @@ class ValueAtTime {
 
   DateTime _ended;
 
-  List<int> deliveredTo = [];
+  Set<int> deliveredTo = new Set<int>();
 
   DateTime get endsAt {
     if (_ended == null) {
