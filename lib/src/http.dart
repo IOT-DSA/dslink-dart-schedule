@@ -494,7 +494,7 @@ handleHttpRequest(HttpRequest request) async {
         });
       });
 
-      for (ICalendarLocalSchedule schedule in provider.nodes.values.where((x) => x is ICalendarLocalSchedule)) {
+      for (ICalendarLocalSchedule schedule in (link.provider as SimpleNodeProvider).nodes.values.where((x) => x is ICalendarLocalSchedule)) {
         Uri syncTokenUri = request.requestedUri;
         syncTokenUri = syncTokenUri
           .replace(path: pathlib.join(syncTokenUri.path, "sync") + "/${generateToken()}");

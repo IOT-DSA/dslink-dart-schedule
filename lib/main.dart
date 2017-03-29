@@ -18,6 +18,7 @@ import "package:dslink_schedule/utils.dart";
 import "package:http/http.dart" as http;
 
 import "package:timezone/src/env.dart" as TimezoneEnv;
+import 'package:timezone/standalone.dart';
 
 import "package:path/path.dart" as pathlib;
 
@@ -30,7 +31,7 @@ part "src/http.dart";
 
 LinkProvider link;
 http.Client httpClient = new http.Client();
-SimpleNodeProvider provider;
+//SimpleNodeProvider provider;
 
 main(List<String> args) async {
   String basePath = Directory.current.path;
@@ -52,7 +53,7 @@ main(List<String> args) async {
     "addLocalSpecialEvent": (String path) => new AddSpecialEventNode(path),
     "fetchSpecialEvents": (String path) => new FetchSpecialEventsNode(path),
     "removeSpecialEvent": (String path) => new RemoveSpecialEventNode(path),
-    "timezone": (String path) => new TimezoneNode(path)
+    TimezoneNode.isType: (String path) => new TimezoneNode(path)
   }, autoInitialize: false);
 
   link.configure(optionsHandler: (opts) {
@@ -62,17 +63,18 @@ main(List<String> args) async {
   });
 
   try {
-    String tzPath = pathlib.join(
-      basePath,
-      'packages',
-      'timezone',
-      'data',
-      TimezoneEnv.tzDataDefaultFilename
-    );
-
-    File file = new File(tzPath);
-    List<int> bytes = await file.readAsBytes();
-    await TimezoneEnv.initializeDatabase(bytes);
+//    String tzPath = pathlib.join(
+//      basePath,
+//      'packages',
+//      'timezone',
+//      'data',
+//      TimezoneEnv.tzDataDefaultFilename
+//    );
+//
+//    File file = new File(tzPath);
+//    List<int> bytes = await file.readAsBytes();
+//    await TimezoneEnv.initializeDatabase(bytes);
+  await initializeTimeZone();
   } catch (e, stack) {
     logger.warning("Failed to load timezone data", e, stack);
   }
@@ -83,7 +85,7 @@ main(List<String> args) async {
 
   link.init();
 
-  provider = link.provider;
+  var provider = link.provider as SimpleNodeProvider;
 
   link.addNode("/addiCalRemoteSchedule", {
     r"$is": "addiCalRemoteSchedule",
@@ -781,16 +783,18 @@ class ICalendarLocalSchedule extends SimpleNode {
       r"$type": "dynamic"
     });
 
-    if (link.provider.getNode("${path}/timezone") == null) {
-      link.addNode("${path}/timezone", {
+    var nd = provider.getNode("${path}/${TimezoneNode.pathName}");
+    if (nd == null) {
+      nd = provider.addNode("${path}/${TimezoneNode.pathName}", {
         r"$name": "Timezone",
         r"$type": "string",
-        r"$is": "timezone",
+        r"$is": TimezoneNode.isType,
         "?schedule": this,
         "?value": TimezoneEnv.local.name,
         r"$writable": "write"
       });
     }
+    (nd as TimezoneNode).schedule = this;
 
     link.addNode("${path}/fetchEvents", {
       r"$name": "Fetch Events",
@@ -1262,7 +1266,7 @@ rebindHttpServer(int port) async {
 }
 
 ICalendarLocalSchedule findLocalSchedule(String name) {
-  for (SimpleNode node in provider.nodes.values) {
+  for (SimpleNode node in (link.provider as SimpleNodeProvider).nodes.values) {
     if (node is! ICalendarLocalSchedule) {
       continue;
     }
@@ -1438,6 +1442,8 @@ class RemoveSpecialEventNode extends SimpleNode {
 }
 
 class TimezoneNode extends SimpleNode {
+  static const String isType = "timezone";
+  static const String pathName = "timezone";
   ICalendarLocalSchedule schedule;
 
   TimezoneNode(String path) : super(path);

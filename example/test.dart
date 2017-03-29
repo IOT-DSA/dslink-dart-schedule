@@ -6,7 +6,7 @@ import "package:dslink_schedule/tz.dart";
 import "package:timezone/standalone.dart";
 
 main() async {
-  initializeTimeZoneSync();
+  await initializeTimeZone();
   var file = new File.fromUri(Platform.script.resolve("lights.ics"));
   var content = await file.readAsString();
   var events = loadEvents(content, await findTimezoneOnSystem()).map((x) => new EventInstance(x)).toList();

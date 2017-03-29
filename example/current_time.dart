@@ -1,7 +1,7 @@
 import "package:timezone/standalone.dart";
 
-main() {
-  initializeTimeZoneSync();
+main() async {
+  await initializeTimeZone();
   var millis = timeZoneDatabase.get("America/New_York").translateToUtc(
     new DateTime.now().millisecondsSinceEpoch
   );
