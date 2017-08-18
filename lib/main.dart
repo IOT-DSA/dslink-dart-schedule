@@ -79,7 +79,7 @@ main(List<String> args) async {
     logger.warning("Failed to load timezone data", e, stack);
   }
 
-  await findTimezoneOnSystem();
+  setLocalLocation(await findTimezoneOnSystem());
 
   loadQueue = [];
 
@@ -685,12 +685,16 @@ class ICalendarLocalSchedule extends SimpleNode {
 
       Map d = e["date"];
 
-      DateTime baseDate = new DateTime(
-        d["year"] == null ? 2000 : d["year"],
-        d["month"] == null ? 1 : d["month"],
-        d["day"] == null ? 1 : d["day"]
-      );
-
+      DateTime baseDate;
+      if (d["year"] == null && d["month"] == null && d["day"] == null) {
+        baseDate = new DateTime.fromMillisecondsSinceEpoch(new DateTime.now().millisecondsSinceEpoch - 24*3600000);
+      } else {
+        baseDate = new DateTime(
+            d["year"] == null ? 2017 : d["year"],
+            d["month"] == null ? 1 : d["month"],
+            d["day"] == null ? 1 : d["day"]
+        );
+      }
       String type = "YEARLY";
 
       if (d["month"] is int) {
@@ -783,17 +787,21 @@ class ICalendarLocalSchedule extends SimpleNode {
       r"$type": "dynamic"
     });
 
-    var nd = provider.getNode("${path}/${TimezoneNode.pathName}");
+    TimezoneNode nd = provider.getNode("${path}/${TimezoneNode.pathName}");
     if (nd == null) {
       nd = provider.addNode("${path}/${TimezoneNode.pathName}", {
         r"$name": "Timezone",
         r"$type": "string",
         r"$is": TimezoneNode.isType,
-        "?schedule": this,
         "?value": TimezoneEnv.local.name,
         r"$writable": "write"
       });
+      nd.schedule = this;
+    } else {
+      nd.schedule = this;
+      nd.onSetValue(nd.value);
     }
+
     (nd as TimezoneNode).schedule = this;
 
     link.addNode("${path}/fetchEvents", {
@@ -1465,11 +1473,5 @@ class TimezoneNode extends SimpleNode {
       }
     }
     return true;
-  }
-
-  @override
-  void load(Map<String, dynamic> map) {
-    schedule = map["?schedule"];
-    super.load(map);
   }
 }
