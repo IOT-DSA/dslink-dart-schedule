@@ -184,8 +184,6 @@ class EventDescription {
   Duration duration;
   DateTime start;
   DateTime end;
-  DateTime localStart;
-  DateTime localEnd;
   bool isRecurring = false;
   Map rule;
 
@@ -285,13 +283,13 @@ class EventDescription {
       map["start"] = {
         r"$name": "Start",
         r"$type": "string",
-        "?value": localStart.toIso8601String()
+        "?value": start.toIso8601String()
       };
 
       map["end"] = {
         r"$name": "End",
         r"$type": "string",
-        "?value": localEnd.toIso8601String()
+        "?value": end.toIso8601String()
       };
     }
 

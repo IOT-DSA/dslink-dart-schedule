@@ -783,21 +783,17 @@ class ICalendarLocalSchedule extends SimpleNode {
       r"$type": "dynamic"
     });
 
-    TimezoneNode nd = provider.getNode("${path}/${TimezoneNode.pathName}");
+    var nd = provider.getNode("${path}/${TimezoneNode.pathName}");
     if (nd == null) {
       nd = provider.addNode("${path}/${TimezoneNode.pathName}", {
         r"$name": "Timezone",
         r"$type": "string",
         r"$is": TimezoneNode.isType,
+        "?schedule": this,
         "?value": TimezoneEnv.local.name,
         r"$writable": "write"
       });
-      nd.schedule = this;
-    } else {
-      nd.schedule = this;
-      nd.onSetValue(nd.value);
     }
-
     (nd as TimezoneNode).schedule = this;
 
     link.addNode("${path}/fetchEvents", {
@@ -1469,5 +1465,11 @@ class TimezoneNode extends SimpleNode {
       }
     }
     return true;
+  }
+
+  @override
+  void load(Map<String, dynamic> map) {
+    schedule = map["?schedule"];
+    super.load(map);
   }
 }
