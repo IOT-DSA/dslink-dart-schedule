@@ -531,6 +531,8 @@ List<Event> loadEvents(String input, Location timezone) {
     e.summary = summary == null ? null : summary.toString();
     e.description = description;
 
+    e.localStart = start;
+    e.localEnd = end;
     e.start = getDateTimeFromObject(start, timezone);
     e.end = getDateTimeFromObject(end, timezone);
     e.rrule = rrule;
@@ -572,6 +574,8 @@ DateTime getDateTimeFromObject(obj, Location timezone) {
 class Event {
   DateTime start;
   DateTime end;
+  DateTime localStart;
+  DateTime localEnd;
   String summary;
   dynamic description;
   Rule rule;
@@ -600,6 +604,8 @@ class Event {
     if (!e.isRecurring) {
       e.start = start;
       e.end = end;
+      e.localStart = localStart;
+      e.localEnd = localEnd;
     }
 
     e.rule = rrule;
