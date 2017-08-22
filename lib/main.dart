@@ -687,7 +687,8 @@ class ICalendarLocalSchedule extends SimpleNode {
 
       DateTime baseDate;
       if (d["year"] == null && d["month"] == null && d["day"] == null) {
-        baseDate = new DateTime.fromMillisecondsSinceEpoch(new DateTime.now().millisecondsSinceEpoch - 24*3600000);
+        DateTime now = new DateTime.now();
+        baseDate = new DateTime(now.year, now.month, now.day);
       } else {
         baseDate = new DateTime(
             d["year"] == null ? 2017 : d["year"],
