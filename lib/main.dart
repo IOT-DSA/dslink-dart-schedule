@@ -38,14 +38,14 @@ main(List<String> args) async {
 
   link = new LinkProvider(args, "Schedule-", profiles: {
     "addiCalRemoteSchedule": (String path) => new AddICalRemoteScheduleNode(path),
-    AddICalLocalScheduleNode.isType: (String path) => new AddICalLocalScheduleNode(path),
+    AddICalLocalScheduleNode.isType: (String path) => new AddICalLocalScheduleNode(path, link),
     "iCalRemoteSchedule": (String path) => new ICalendarRemoteSchedule(path),
     ICalendarLocalSchedule.isType: (String path) => new ICalendarLocalSchedule(path),
     "remove": (String path) => new DeleteActionNode.forParent(path, link.provider as MutableNodeProvider, onDelete: () {
       link.save();
     }),
     "event": (String path) => new EventNode(path),
-    "addLocalEvent": (String path) => new AddLocalEventNode(path),
+    AddLocalEventNode.isType: (String path) => new AddLocalEventNode(path),
     "httpPort": (String path) => new HttpPortNode(path),
     "editLocalEvent": (String path) => new EditLocalEventNode(path),
     "fetchEvents": (String path) => new FetchEventsNode(path),
@@ -126,7 +126,8 @@ main(List<String> args) async {
   var portValue = link.val("/httpPort");
   await rebindHttpServer(portValue is String ? int.parse(portValue) : portValue);
 
-  link.addNode("/addiCalLocalSchedule", AddICalLocalScheduleNode.def());
+  link.addNode("/${AddICalLocalScheduleNode.pathName}",
+      AddICalLocalScheduleNode.def());
 
   await Future.wait(loadQueue);
   loadQueue = null;
@@ -252,14 +253,50 @@ class EditLocalEventNode extends SimpleNode {
 }
 
 class AddLocalEventNode extends SimpleNode {
+  static const String isType = 'addLocalEvent';
+  static const String pathName = 'addEvent';
+
+  static const String _name = 'name';
+  static const String _time = 'time';
+  static const String _value = 'value';
+  static const String _rule = 'rule';
+
+  static Map<String, dynamic> def() => {
+    r"$name": "Add Event",
+    r"$is": isType,
+    r"$invokable": "write",
+    r"$params": [
+      {
+        "name": _name,
+        "type": "string",
+        "placeholder": "Turn on Light"
+      },
+      {
+        "name": _time,
+        "type": "string",
+        "editor": "daterange"
+      },
+      {
+        "name": _value,
+        "type": "dynamic",
+        "description": "Event Value"
+      },
+      {
+        "name": _rule,
+        "type": "string",
+        "placeholder": "FREQ=DAILY"
+      }
+    ]
+  };
+
   AddLocalEventNode(String path) : super(path);
 
   @override
   onInvoke(Map<String, dynamic> params) async {
-    var name = params["name"];
-    var timeRangeString = params["time"];
-    var value = parseInputValue(params["value"]);
-    var ruleString = params["rule"];
+    var name = params[_name];
+    var timeRangeString = params[_time];
+    var value = parseInputValue(params[_value]);
+    var ruleString = params[_rule];
 
     if (name is! String) {
       throw new Exception("Invalid Event Name");
@@ -294,13 +331,14 @@ class AddLocalEventNode extends SimpleNode {
     var p = new Path(path);
     ICalendarLocalSchedule schedule = link.getNode(p.parent.parent.path);
 
-    schedule.storedEvents.removeWhere((x) => x["name"] == name);
+    schedule.storedEvents.removeWhere((x) => x[_name] == name);
     schedule.storedEvents.add(event.encode());
     await schedule.loadSchedule();
   }
 }
 
 class AddICalLocalScheduleNode extends SimpleNode {
+  static const String pathName = 'addiCalLocalSchedule';
   static const String isType = 'addiCalLocalSchedule';
   static const String _name = 'name';
   static const String _defaultValue = 'defaultValue';
@@ -325,7 +363,8 @@ class AddICalLocalScheduleNode extends SimpleNode {
     r"$invokable": "write"
   };
 
-  AddICalLocalScheduleNode(String path) : super(path);
+  final LinkProvider link;
+  AddICalLocalScheduleNode(String path, this.link) : super(path);
 
   @override
   onInvoke(Map<String, dynamic> params) {
@@ -335,7 +374,7 @@ class AddICalLocalScheduleNode extends SimpleNode {
     defaultValue = parseInputValue(defaultValue);
 
     var rawName = NodeNamer.createName(name);
-    link.addNode("/${rawName}", ICalendarLocalSchedule.def(name, defaultValue));
+    link.addNode("/$rawName", ICalendarLocalSchedule.def(name, defaultValue));
 
     link.save();
   }
@@ -871,33 +910,7 @@ class ICalendarLocalSchedule extends SimpleNode {
 
     link.addNode("${path}/events", {
       r"$name": "Events",
-      "addEvent": {
-        r"$name": "Add Event",
-        r"$is": "addLocalEvent",
-        r"$params": [
-          {
-            "name": "name",
-            "type": "string",
-            "placeholder": "Turn on Light"
-          },
-          {
-            "name": "time",
-            "type": "string",
-            "editor": "daterange"
-          },
-          {
-            "name": "value",
-            "type": "dynamic",
-            "description": "Event Value"
-          },
-          {
-            "name": "rule",
-            "type": "string",
-            "placeholder": "FREQ=DAILY"
-          }
-        ],
-        r"$invokable": "write"
-      },
+      AddLocalEventNode.pathName: AddLocalEventNode.def(),
       "addSpecialEvent": {
         r"$name": "Add Special Event",
         r"$is": "addLocalSpecialEvent",
