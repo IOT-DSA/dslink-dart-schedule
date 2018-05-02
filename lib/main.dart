@@ -38,9 +38,9 @@ main(List<String> args) async {
 
   link = new LinkProvider(args, "Schedule-", profiles: {
     "addiCalRemoteSchedule": (String path) => new AddICalRemoteScheduleNode(path),
-    "addiCalLocalSchedule": (String path) => new AddICalLocalScheduleNode(path),
+    AddICalLocalScheduleNode.isType: (String path) => new AddICalLocalScheduleNode(path),
     "iCalRemoteSchedule": (String path) => new ICalendarRemoteSchedule(path),
-    "iCalLocalSchedule": (String path) => new ICalendarLocalSchedule(path),
+    ICalendarLocalSchedule.isType: (String path) => new ICalendarLocalSchedule(path),
     "remove": (String path) => new DeleteActionNode.forParent(path, link.provider as MutableNodeProvider, onDelete: () {
       link.save();
     }),
@@ -126,25 +126,7 @@ main(List<String> args) async {
   var portValue = link.val("/httpPort");
   await rebindHttpServer(portValue is String ? int.parse(portValue) : portValue);
 
-  link.addNode("/addiCalLocalSchedule", {
-    r"$is": "addiCalLocalSchedule",
-    r"$name": "Add Local Schedule",
-    r"$params": [
-      {
-        "name": "name",
-        "type": "string",
-        "placeholder": "Light Schedule",
-        "description": "Name of the Schedule"
-      },
-      {
-        "name": "defaultValue",
-        "type": "dynamic",
-        "description": "Default Value for Schedule",
-        "default": 0
-      }
-    ],
-    r"$invokable": "write"
-  });
+  link.addNode("/addiCalLocalSchedule", AddICalLocalScheduleNode.def());
 
   await Future.wait(loadQueue);
   loadQueue = null;
@@ -319,21 +301,41 @@ class AddLocalEventNode extends SimpleNode {
 }
 
 class AddICalLocalScheduleNode extends SimpleNode {
+  static const String isType = 'addiCalLocalSchedule';
+  static const String _name = 'name';
+  static const String _defaultValue = 'defaultValue';
+
+  static Map<String, dynamic> def() => {
+    r"$is": isType,
+    r"$name": "Add Local Schedule",
+    r"$params": [
+      {
+        "name": _name,
+        "type": "string",
+        "placeholder": "Light Schedule",
+        "description": "Name of the Schedule"
+      },
+      {
+        "name": _defaultValue,
+        "type": "dynamic",
+        "description": "Default Value for Schedule",
+        "default": 0
+      }
+    ],
+    r"$invokable": "write"
+  };
+
   AddICalLocalScheduleNode(String path) : super(path);
 
   @override
   onInvoke(Map<String, dynamic> params) {
-    String name = params["name"];
-    dynamic defaultValue = params["defaultValue"];
+    String name = params[_name];
+    dynamic defaultValue = params[_defaultValue];
 
     defaultValue = parseInputValue(defaultValue);
 
     var rawName = NodeNamer.createName(name);
-    link.addNode("/${rawName}", {
-      r"$is": "iCalLocalSchedule",
-      r"$name": name,
-      "@defaultValue": defaultValue
-    });
+    link.addNode("/${rawName}", ICalendarLocalSchedule.def(name, defaultValue));
 
     link.save();
   }
@@ -570,9 +572,24 @@ class ICalendarRemoteSchedule extends SimpleNode {
 }
 
 class ICalendarLocalSchedule extends SimpleNode {
+  static const String isType = 'iCalLocalSchedule';
+  static const String aDefaultValue = '@defaultValue';
+  static const String aStoredEvents = '@events';
+  static const String aSpecialEvents = '@specialEvents';
+  static const String aWeeklyEvents = '@weeklyEvents';
+
+  static Map<String, dynamic> def(String name, dynamic defaultValue) => {
+    r'$is': isType,
+    r"$name": name,
+    aDefaultValue: defaultValue,
+    aStoredEvents: [],
+    aSpecialEvents: [],
+    aWeeklyEvents: []
+  };
+
   Location timezone;
 
-  dynamic get defaultValue => attributes[r"@defaultValue"];
+  dynamic get defaultValue => attributes[aDefaultValue];
 
   List<Map> storedEvents = [];
   List<Map> specialEvents = [];
@@ -751,27 +768,27 @@ class ICalendarLocalSchedule extends SimpleNode {
 
   @override
   onCreated() {
-    if (attributes["@events"] is List) {
+    if (attributes[aStoredEvents] is List) {
       storedEvents.clear();
-      for (var element in attributes["@events"]) {
+      for (var element in attributes[aStoredEvents]) {
         if (element is Map) {
           storedEvents.add(element);
         }
       }
     }
 
-    if (attributes["@specialEvents"] is List) {
+    if (attributes[aSpecialEvents] is List) {
       specialEvents.clear();
-      for (var element in attributes["@specialEvents"]) {
+      for (var element in attributes[aSpecialEvents]) {
         if (element is Map) {
           specialEvents.add(element);
         }
       }
     }
 
-    if (attributes["@weeklyEvents"] is List) {
+    if (attributes[aWeeklyEvents] is List) {
       weeklyEvents.clear();
-      for (var element in attributes["@weeklyEvents"]) {
+      for (var element in attributes[aWeeklyEvents]) {
         if (element is Map) {
           weeklyEvents.add(element);
         }
