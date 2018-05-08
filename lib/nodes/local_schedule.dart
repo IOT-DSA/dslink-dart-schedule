@@ -129,6 +129,7 @@ class ICalendarLocalScheduleImpl extends SimpleNode implements ICalendarLocalSch
   Future<Null> addStoredEvent(ical.StoredEvent event) async {
     storedEvents.removeWhere((x) => x["name"] == event.name);
     storedEvents.add(event.encode());
+    attributes[aStoredEvents] = storedEvents;
     await loadSchedule();
   }
 
@@ -153,11 +154,13 @@ class ICalendarLocalScheduleImpl extends SimpleNode implements ICalendarLocalSch
           ..['value'] = eventData['value'];
     }
 
+    attributes[aStoredEvents] = storedEvents;
     await loadSchedule(true);
   }
 
   void removeStoredEvent(String name) {
     storedEvents.removeWhere((x) => x["name"] == name);
+    attributes[aStoredEvents] = storedEvents;
     loadSchedule();
   }
 
@@ -647,8 +650,9 @@ class ICalendarLocalScheduleImpl extends SimpleNode implements ICalendarLocalSch
 
         var rp = "${path}/events/${pid}";
         addOrUpdateNode(link.provider, rp, map);
-        SimpleNode eventNode = link.getNode(rp);
+        var  eventNode = link.getNode(rp) as EventNode;
         eventNode.updateList(r"$is");
+        eventNode.description = event;
 
         if (event.rule == null) {
           event.rule = {};

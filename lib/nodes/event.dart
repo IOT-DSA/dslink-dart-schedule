@@ -1,5 +1,6 @@
 import 'package:dslink/dslink.dart';
-import 'package:dslink_schedule/calendar.dart';
+
+import '../calendar.dart';
 
 import 'common.dart';
 
