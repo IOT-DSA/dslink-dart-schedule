@@ -15,32 +15,16 @@ class AddLocalEventNode extends SimpleNode {
   static const String _rule = 'rule';
 
   static Map<String, dynamic> def() => {
-    r"$name": "Add Event",
-    r"$is": isType,
-    r"$invokable": "write",
-    r"$params": [
-      {
-        "name": _name,
-        "type": "string",
-        "placeholder": "Turn on Light"
-      },
-      {
-        "name": _time,
-        "type": "string",
-        "editor": "daterange"
-      },
-      {
-        "name": _value,
-        "type": "dynamic",
-        "description": "Event Value"
-      },
-      {
-        "name": _rule,
-        "type": "string",
-        "placeholder": "FREQ=DAILY"
-      }
-    ]
-  };
+        r"$name": "Add Event",
+        r"$is": isType,
+        r"$invokable": "write",
+        r"$params": [
+          {"name": _name, "type": "string", "placeholder": "Turn on Light"},
+          {"name": _time, "type": "string", "editor": "daterange"},
+          {"name": _value, "type": "dynamic", "description": "Event Value"},
+          {"name": _rule, "type": "string", "placeholder": "FREQ=DAILY"}
+        ]
+      };
 
   AddLocalEventNode(String path) : super(path);
 
@@ -63,11 +47,9 @@ class AddLocalEventNode extends SimpleNode {
     DateTime end;
     Map rule;
 
-
     var parts = timeRangeString.split("/");
     start = DateTime.parse(parts[0]);
     end = DateTime.parse(parts[1]);
-
 
     TimeRange range = new TimeRange(start, end);
 
@@ -106,34 +88,26 @@ class EditLocalEventNode extends SimpleNode {
   static const String _rule = 'rule';
 
   static Map<String, dynamic> def(EventDescription event, String rule) => {
-    r"$name": "Edit",
-    r"$params": [
-      {
-        "name": _name,
-        "type": "string",
-        "default": event.name
-      },
-      {
-        "name": _time,
-        "type": "string",
-        "editor": "daterange",
-        "default": "${event.start}/${event.end}"
-      },
-      {
-        "name": _value,
-        "type": "dynamic",
-        "default": event.value
-      },
-      {
-        "name": _rule,
-        "type": "string",
-        "placeholder": "FREQ=DAILY",
-        "default": rule
-      }
-    ],
-    r"$is": isType,
-    r"$invokable": "write"
-  };
+        r"$name": "Edit",
+        r"$params": [
+          {"name": _name, "type": "string", "default": event.name},
+          {
+            "name": _time,
+            "type": "string",
+            "editor": "daterange",
+            "default": "${event.start}/${event.end}"
+          },
+          {"name": _value, "type": "dynamic", "default": event.value},
+          {
+            "name": _rule,
+            "type": "string",
+            "placeholder": "FREQ=DAILY",
+            "default": rule
+          }
+        ],
+        r"$is": isType,
+        r"$invokable": "write"
+      };
 
   EditLocalEventNode(String path) : super(path);
 
@@ -146,7 +120,8 @@ class EditLocalEventNode extends SimpleNode {
 
     var p = new Path(path);
 
-    ICalendarLocalSchedule schedule = provider.getNode(p.parent.parent.parent.path);
+    ICalendarLocalSchedule schedule =
+        provider.getNode(p.parent.parent.parent.path);
 
     String eventId = p.parent.name;
     if (eventId == null) {
@@ -176,6 +151,5 @@ class EditLocalEventNode extends SimpleNode {
     };
 
     await schedule.updateStoredEvent(eventId, m);
-
   }
 }

@@ -11,9 +11,7 @@ abstract class CalendarProvider {
   ValueAtTime current(ValueCalendarState state);
   List<EventDescription> listEvents();
   List<ValueAtTime> between(
-    ValueCalendarState state,
-    DateTime start,
-    DateTime end);
+      ValueCalendarState state, DateTime start, DateTime end);
 }
 
 class ValueCalendarState {
@@ -28,9 +26,7 @@ class ValueCalendarState {
   }
 
   List<ValueAtTime> getBetween(DateTime start, DateTime end) {
-    return Zone.current.fork(zoneValues: {
-      "mock.time": start
-    }).run(() {
+    return Zone.current.fork(zoneValues: {"mock.time": start}).run(() {
       return provider.between(this, start, end);
     });
   }
@@ -75,7 +71,8 @@ class ValueCalendarState {
         nextCheck = current.time.difference(TimeUtils.now).abs();
       }
 
-      logger.fine("Next Check for ${current.description.name} scheduled for ${nextCheck.inSeconds} seconds.");
+      logger.fine(
+          "Next Check for ${current.description.name} scheduled for ${nextCheck.inSeconds} seconds.");
 
       timer = new Timer(nextCheck, () {
         if (!current.deliveredTo.contains(id)) {
@@ -124,23 +121,17 @@ class ValueAtTime {
   final String eventId;
 
   ValueAtTime(
-    this.time,
-    this.value,
-    this.duration,
-    this.description,
-    this.eventId, [
-      this.isDefault = false
-    ]);
+      this.time, this.value, this.duration, this.description, this.eventId,
+      [this.isDefault = false]);
 
   factory ValueAtTime.forDefault(val) {
     return new ValueAtTime(
-      new DateTime.fromMillisecondsSinceEpoch(0),
-      val,
-      const Duration(days: 36500000),
-      new EventDescription("Default", val),
-      null,
-      true
-    );
+        new DateTime.fromMillisecondsSinceEpoch(0),
+        val,
+        const Duration(days: 36500000),
+        new EventDescription("Default", val),
+        null,
+        true);
   }
 
   DateTime _ended;
@@ -163,14 +154,13 @@ class ValueAtTime {
   bool get hasAlreadyHappened {
     var now = TimeUtils.now;
     return endsAt.isBefore(now) ||
-      endsAt.isAtSameMomentAs(now) ||
-      endsAt.difference(now).inSeconds == 0;
+        endsAt.isAtSameMomentAs(now) ||
+        endsAt.difference(now).inSeconds == 0;
   }
 
   bool get isHappeningNow {
     var now = TimeUtils.now;
-    return time.isBefore(now) &&
-      endsAt.isAfter(now);
+    return time.isBefore(now) && endsAt.isAfter(now);
   }
 
   @override
@@ -203,11 +193,7 @@ class EventDescription {
         r"$type": "string",
         "?value": uuid == null ? i.toString() : uuid
       },
-      "value": {
-        r"$name": "Value",
-        r"$type": "dynamic",
-        "?value": value
-      }
+      "value": {r"$name": "Value", r"$type": "dynamic", "?value": value}
     };
 
     if (duration != null) {
@@ -224,33 +210,14 @@ class EventDescription {
       r"$invokable": "read",
       r"$is": "fetchEventsForEvent",
       r"$params": [
-        {
-          "name": "TimeRange",
-          "type": "string",
-          "editor": "daterange"
-        }
+        {"name": "TimeRange", "type": "string", "editor": "daterange"}
       ],
       r"$columns": [
-        {
-          "name": "start",
-          "type": "string"
-        },
-        {
-          "name": "end",
-          "type": "string"
-        },
-        {
-          "name": "duration",
-          "type": "number"
-        },
-        {
-          "name": "event",
-          "type": "string"
-        },
-        {
-          "name": "value",
-          "type": "dynamic"
-        }
+        {"name": "start", "type": "string"},
+        {"name": "end", "type": "string"},
+        {"name": "duration", "type": "number"},
+        {"name": "event", "type": "string"},
+        {"name": "value", "type": "dynamic"}
       ],
       r"$result": "table"
     };
@@ -269,11 +236,7 @@ class EventDescription {
       }
     }
 
-    map["rule"] = {
-      r"$name": "Rule",
-      r"$type": "string",
-      "?value": ruleString
-    };
+    map["rule"] = {r"$name": "Rule", r"$type": "string", "?value": ruleString};
 
     map["remove"] = {
       r"$name": "Remove",

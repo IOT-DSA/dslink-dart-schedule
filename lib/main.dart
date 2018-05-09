@@ -39,25 +39,34 @@ main(List<String> args) async {
 
   var loadQueue = new LoadingQueue();
 
-  link = new LinkProvider(args, "Schedule-", profiles: {
-    "addiCalRemoteSchedule": (String path) => new AddICalRemoteScheduleNode(path),
-    AddICalLocalScheduleNode.isType: (String path) => new AddICalLocalScheduleNode(path, link),
-    "iCalRemoteSchedule": (String path) => new ICalendarRemoteSchedule(path, loadQueue),
-    ICalendarLocalScheduleImpl.isType: (String path) => new ICalendarLocalScheduleImpl(path, link, loadQueue),
-    "remove": (String path) => new DeleteActionNode.forParent(path, link.provider as MutableNodeProvider, onDelete: () {
-      link.save();
-    }),
-    EventNode.isType: (String path) => new EventNode(path),
-    AddLocalEventNode.isType: (String path) => new AddLocalEventNode(path),
-    "httpPort": (String path) => new HttpPortNode(path),
-    EditLocalEventNode.isType: (String path) => new EditLocalEventNode(path),
-    "fetchEvents": (String path) => new FetchEventsNode(path),
-    "fetchEventsForEvent": (String path) => new FetchEventsForEventNode(path),
-    "addLocalSpecialEvent": (String path) => new AddSpecialEventNode(path),
-    "fetchSpecialEvents": (String path) => new FetchSpecialEventsNode(path),
-    "removeSpecialEvent": (String path) => new RemoveSpecialEventNode(path),
-    TimezoneNode.isType: (String path) => new TimezoneNode(path, link)
-  }, autoInitialize: false);
+  link = new LinkProvider(args, "Schedule-",
+      profiles: {
+        "addiCalRemoteSchedule": (String path) =>
+            new AddICalRemoteScheduleNode(path),
+        AddICalLocalScheduleNode.isType: (String path) =>
+            new AddICalLocalScheduleNode(path, link),
+        "iCalRemoteSchedule": (String path) =>
+            new ICalendarRemoteSchedule(path, loadQueue),
+        ICalendarLocalScheduleImpl.isType: (String path) =>
+            new ICalendarLocalScheduleImpl(path, link, loadQueue),
+        "remove": (String path) => new DeleteActionNode.forParent(
+                path, link.provider as MutableNodeProvider, onDelete: () {
+              link.save();
+            }),
+        EventNode.isType: (String path) => new EventNode(path),
+        AddLocalEventNode.isType: (String path) => new AddLocalEventNode(path),
+        "httpPort": (String path) => new HttpPortNode(path),
+        EditLocalEventNode.isType: (String path) =>
+            new EditLocalEventNode(path),
+        "fetchEvents": (String path) => new FetchEventsNode(path),
+        "fetchEventsForEvent": (String path) =>
+            new FetchEventsForEventNode(path),
+        "addLocalSpecialEvent": (String path) => new AddSpecialEventNode(path),
+        "fetchSpecialEvents": (String path) => new FetchSpecialEventsNode(path),
+        "removeSpecialEvent": (String path) => new RemoveSpecialEventNode(path),
+        TimezoneNode.isType: (String path) => new TimezoneNode(path, link)
+      },
+      autoInitialize: false);
 
   link.configure(optionsHandler: (opts) {
     if (opts["base-path"] != null) {
@@ -77,7 +86,7 @@ main(List<String> args) async {
 //    File file = new File(tzPath);
 //    List<int> bytes = await file.readAsBytes();
 //    await TimezoneEnv.initializeDatabase(bytes);
-  await initializeTimeZone();
+    await initializeTimeZone();
   } catch (e, stack) {
     logger.warning("Failed to load timezone data", e, stack);
   }
@@ -125,10 +134,11 @@ main(List<String> args) async {
   }
 
   var portValue = link.val("/httpPort");
-  await rebindHttpServer(portValue is String ? int.parse(portValue) : portValue);
+  await rebindHttpServer(
+      portValue is String ? int.parse(portValue) : portValue);
 
-  link.addNode("/${AddICalLocalScheduleNode.pathName}",
-      AddICalLocalScheduleNode.def());
+  link.addNode(
+      "/${AddICalLocalScheduleNode.pathName}", AddICalLocalScheduleNode.def());
 
   await Future.wait(loadQueue.queue);
   loadQueue.clear();
@@ -171,36 +181,21 @@ class ICalendarRemoteSchedule extends SimpleNode {
 
   @override
   onCreated() {
-    link.addNode("${path}/current", {
-      r"$name": "Current Value",
-      r"$type": "dynamic"
-    });
+    link.addNode(
+        "${path}/current", {r"$name": "Current Value", r"$type": "dynamic"});
 
-    link.addNode("${path}/next", {
-      r"$name": "Next Value",
-      r"$type": "dynamic"
-    });
+    link.addNode("${path}/next", {r"$name": "Next Value", r"$type": "dynamic"});
 
-    link.addNode("${path}/next_ts", {
-      r"$name": "Next Value Timestamp",
-      r"$type": "dynamic"
-    });
+    link.addNode("${path}/next_ts",
+        {r"$name": "Next Value Timestamp", r"$type": "dynamic"});
 
-    link.addNode("${path}/stc", {
-      r"$name": "Next Value Timer",
-      r"$type": "number",
-      "@unit": "seconds"
-    });
+    link.addNode("${path}/stc",
+        {r"$name": "Next Value Timer", r"$type": "number", "@unit": "seconds"});
 
-    link.addNode("${path}/events", {
-      r"$name": "Events"
-    });
+    link.addNode("${path}/events", {r"$name": "Events"});
 
-    link.addNode("${path}/remove", {
-      r"$name": "Remove",
-      r"$invokable": "write",
-      r"$is": "remove"
-    });
+    link.addNode("${path}/remove",
+        {r"$name": "Remove", r"$invokable": "write", r"$is": "remove"});
 
     var future = loadSchedule();
 
@@ -217,7 +212,8 @@ class ICalendarRemoteSchedule extends SimpleNode {
         try {
           var response = await httpClient.get(url);
           if (response.statusCode != 200) {
-            throw new Exception("Failed to fetch schedule: Status Code was ${response.statusCode}");
+            throw new Exception(
+                "Failed to fetch schedule: Status Code was ${response.statusCode}");
           }
           content = response.body;
         } catch (e) {
@@ -243,8 +239,7 @@ class ICalendarRemoteSchedule extends SimpleNode {
 
       var events = ical.loadEvents(content, TimezoneEnv.local);
       icalProvider = new ical.ICalendarProvider(
-          events.map((x) => new ical.EventInstance(x)).toList()
-      );
+          events.map((x) => new ical.EventInstance(x)).toList());
       state = new ValueCalendarState(icalProvider);
       state.defaultValue = new ValueAtTime.forDefault(defaultValue);
 
@@ -310,12 +305,14 @@ class ICalendarRemoteSchedule extends SimpleNode {
       if (httpTimer == null) {
         httpTimer = Scheduler.safeEvery(new Interval.forSeconds(10), () async {
           try {
-            logger.finest("Schedule '${displayName}': Checking for Schedule Update");
+            logger.finest(
+                "Schedule '${displayName}': Checking for Schedule Update");
 
             var response = await httpClient.get(url);
 
             if (response.statusCode != 200) {
-              logger.fine("Schedule '${displayName}': Checking for Schedule Update Failed (Status Code: ${response.statusCode})");
+              logger.fine(
+                  "Schedule '${displayName}': Checking for Schedule Update Failed (Status Code: ${response.statusCode})");
               return;
             }
 
@@ -334,16 +331,14 @@ class ICalendarRemoteSchedule extends SimpleNode {
               logger.fine("Schedule '${displayName}': Schedule Up-To-Date");
             }
           } catch (e) {
-            logger.warning("Failed to check for schedule update for '${displayName}': ${e}");
+            logger.warning(
+                "Failed to check for schedule update for '${displayName}': ${e}");
           }
         });
       }
     } catch (e, stack) {
-      link.addNode("${path}/error", {
-        r"$name": "Error",
-        r"$type": "string",
-        "?value": e.toString()
-      });
+      link.addNode("${path}/error",
+          {r"$name": "Error", r"$type": "string", "?value": e.toString()});
 
       logger.warning("Schedule '${displayName}' has an error.", e, stack);
     }
@@ -385,7 +380,6 @@ class ICalendarRemoteSchedule extends SimpleNode {
   Timer untilTimer;
   Disposable httpTimer;
 }
-
 
 class HttpPortNode extends SimpleNode {
   HttpPortNode(String path) : super(path);
@@ -494,7 +488,10 @@ class FetchEventsForEventNode extends SimpleNode {
     ICalendarLocalSchedule schedule = link.getNode(p.parent.parent.parent.path);
     String thatUuid = p.parent.name;
 
-    var results = schedule.state.getBetween(start, end).where((v) => v.eventId == thatUuid).where((x) {
+    var results = schedule.state
+        .getBetween(start, end)
+        .where((v) => v.eventId == thatUuid)
+        .where((x) {
       return x.time.isAfter(start) && x.time.isBefore(end);
     }).toList();
 
@@ -539,9 +536,9 @@ class AddSpecialEventNode extends SimpleNode {
     var date = JSON.decode(dateString);
     var times = JSON.decode(timesString);
 
-    String id = params["ReplacementId"] is! String ?
-      generateToken() :
-      params["ReplacementId"];
+    String id = params["ReplacementId"] is! String
+        ? generateToken()
+        : params["ReplacementId"];
 
     if (id.trim().isEmpty) {
       id = generateToken();
@@ -549,13 +546,14 @@ class AddSpecialEventNode extends SimpleNode {
 
     var p = new Path(path);
     ICalendarLocalSchedule schedule = link.getNode(p.parent.parent.path);
-    var fe = schedule.specialEvents.firstWhere((e) => e["id"] == id, orElse: () => null);
+    var fe = schedule.specialEvents
+        .firstWhere((e) => e["id"] == id, orElse: () => null);
     var m = {
       "type": type == null ? "Date" : type,
       "date": date,
       "times": times,
       "name": name,
-      "id":  id
+      "id": id
     };
 
     if (fe != null) {
@@ -566,9 +564,9 @@ class AddSpecialEventNode extends SimpleNode {
 
     await schedule.loadSchedule(true);
 
-    return [[
-      id
-    ]];
+    return [
+      [id]
+    ];
   }
 }
 
@@ -580,13 +578,9 @@ class FetchSpecialEventsNode extends SimpleNode {
     var p = new Path(path);
     ICalendarLocalSchedule schedule = link.getNode(p.parent.parent.path);
     for (Map e in schedule.specialEvents) {
-      yield [[
-        e["id"],
-        e["name"],
-        e["type"],
-        e["date"],
-        e["times"]
-      ]];
+      yield [
+        [e["id"], e["name"], e["type"], e["date"], e["times"]]
+      ];
     }
   }
 }

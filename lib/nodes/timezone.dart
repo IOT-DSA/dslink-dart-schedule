@@ -10,12 +10,12 @@ class TimezoneNode extends SimpleNode {
   static const String pathName = "timezone";
 
   static Map<String, dynamic> def(String tz) => {
-    r"$name": "Timezone",
-    r"$type": "string",
-    r"$is": isType,
-    "?value": tz,
-    r"$writable": "write"
-  };
+        r"$name": "Timezone",
+        r"$type": "string",
+        r"$is": isType,
+        "?value": tz,
+        r"$writable": "write"
+      };
 
   ICalendarLocalSchedule schedule;
 
@@ -25,10 +25,9 @@ class TimezoneNode extends SimpleNode {
   @override
   onSetValue(value) {
     if (value is String) {
-      var loc = const [
-        "UTC",
-        "Etc/GMT"
-      ].contains(value) ? TimezoneEnv.UTC : TimezoneEnv.getLocation(value);
+      var loc = const ["UTC", "Etc/GMT"].contains(value)
+          ? TimezoneEnv.UTC
+          : TimezoneEnv.getLocation(value);
       if (loc != null) {
         schedule.timezone = loc;
         schedule.loadSchedule(true);

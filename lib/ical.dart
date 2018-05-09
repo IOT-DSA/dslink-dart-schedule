@@ -161,10 +161,7 @@ CalendarObject parseCalendarObjects(List input) {
         if (!obj.properties.containsKey(type)) {
           obj.properties[type] = [];
         }
-        var val = parseCalendarValue({
-          "metadata": typ[1],
-          "value": x[1]
-        }, root);
+        var val = parseCalendarValue({"metadata": typ[1], "value": x[1]}, root);
         obj.properties[type].add(val);
       } else {
         var key = x[0];
@@ -207,14 +204,15 @@ dynamic parseCalendarValue(input, CalendarObject root) {
   try {
     if (str[8] == "T") {
       String offset;
-      if (input is Map && input["metadata"] is Map && input["metadata"]["TZID"] != null) {
+      if (input is Map &&
+          input["metadata"] is Map &&
+          input["metadata"]["TZID"] != null) {
         String name = input["metadata"]["TZID"];
         offset = root.getTimezoneLookupTable()[name];
       }
       val = parseCalendarDate(str, offset);
     }
-  } catch (e) {
-  }
+  } catch (e) {}
 
   try {
     val = num.parse(str);
@@ -246,15 +244,7 @@ enum RuleFrequency {
   SECONDLY
 }
 
-enum Weekday {
-  MONDAY,
-  TUESDAY,
-  WEDNESDAY,
-  THURSDAY,
-  FRIDAY,
-  SATURDAY,
-  SUNDAY
-}
+enum Weekday { MONDAY, TUESDAY, WEDNESDAY, THURSDAY, FRIDAY, SATURDAY, SUNDAY }
 
 enum Month {
   JANUARY,
@@ -298,15 +288,7 @@ String genericWeekdayToICal(String input) {
 
   var prefix = input.substring(0, 2);
 
-  if (const [
-    "SU",
-    "MO",
-    "TU",
-    "WE",
-    "TH",
-    "FR",
-    "SA"
-  ].contains(prefix)) {
+  if (const ["SU", "MO", "TU", "WE", "TH", "FR", "SA"].contains(prefix)) {
     return prefix;
   }
 
@@ -521,10 +503,7 @@ List<Event> loadEvents(String input, Location timezone) {
     var rrule = x.properties["RRULE"];
 
     if (rrule == null) {
-      rrule = {
-        "FREQ": "DAILY",
-        "UNTIL": end
-      };
+      rrule = {"FREQ": "DAILY", "UNTIL": end};
     }
 
     var e = new Event();
@@ -559,13 +538,13 @@ DateTime getDateTimeFromObject(obj, Location timezone) {
 
   if (time != null && timezone != null) {
     if (local != null) {
-      time = new DateTime.fromMillisecondsSinceEpoch(
-        local.translate(timezone.translateToUtc(time.millisecondsSinceEpoch))
-      );
+      time = new DateTime.fromMillisecondsSinceEpoch(local
+          .translate(timezone.translateToUtc(time.millisecondsSinceEpoch)));
     } else {
-      time = new DateTime.fromMillisecondsSinceEpoch(timezone.translateToUtc(
-        time.millisecondsSinceEpoch
-      ), isUtc: true).toLocal();
+      time = new DateTime.fromMillisecondsSinceEpoch(
+              timezone.translateToUtc(time.millisecondsSinceEpoch),
+              isUtc: true)
+          .toLocal();
     }
   }
   return time;
@@ -783,14 +762,10 @@ class ICalendarProvider extends CalendarProvider {
     for (var e in events) {
       var cloned = e.iterator.clone();
       var value = e.event.extractValue();
-      thisEvent: while (cloned.moveNext()) {
-        var v = new ValueAtTime(
-          cloned.current.time,
-          value,
-          e.event.duration,
-          e.event.describe(),
-          e.event.uuid
-        );
+      thisEvent:
+      while (cloned.moveNext()) {
+        var v = new ValueAtTime(cloned.current.time, value, e.event.duration,
+            e.event.describe(), e.event.uuid);
 
         if (v.hasAlreadyHappened) {
           continue thisEvent;
@@ -822,20 +797,16 @@ class ICalendarProvider extends CalendarProvider {
     for (var e in events) {
       var cloned = e.iterator.clone(reset);
       var i = 0;
-      thisEvent: while (cloned.moveNext()) {
+      thisEvent:
+      while (cloned.moveNext()) {
         i++;
         if (skip >= i) {
           continue;
         }
 
         var value = e.event.extractValue();
-        var v = new ValueAtTime(
-          cloned.current.time,
-          value,
-          e.event.duration,
-          e.event.describe(),
-          e.event.uuid
-        );
+        var v = new ValueAtTime(cloned.current.time, value, e.event.duration,
+            e.event.describe(), e.event.uuid);
 
         if (v.hasAlreadyHappened || v.isHappeningNow) {
           continue thisEvent;
@@ -856,8 +827,8 @@ class ICalendarProvider extends CalendarProvider {
 
     if (skip == 0) {
       if (queued != null &&
-        !queued.hasAlreadyHappened &&
-        !queued.isHappeningNow) {
+          !queued.hasAlreadyHappened &&
+          !queued.isHappeningNow) {
         return queued;
       }
     }
@@ -873,7 +844,8 @@ class ICalendarProvider extends CalendarProvider {
   }
 
   @override
-  List<ValueAtTime> between(ValueCalendarState state, DateTime start, DateTime end) {
+  List<ValueAtTime> between(
+      ValueCalendarState state, DateTime start, DateTime end) {
     var list = <ValueAtTime>[];
     var i = 0;
     ValueAtTime last;

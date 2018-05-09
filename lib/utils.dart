@@ -69,7 +69,8 @@ String formatICalendarTime(DateTime time) {
   return out;
 }
 
-void addOrUpdateNode(SimpleNodeProvider provider, String path, Map<String, dynamic> map) {
+void addOrUpdateNode(
+    SimpleNodeProvider provider, String path, Map<String, dynamic> map) {
   if (!provider.hasNode(path)) {
     provider.addNode(path, map);
     return;
@@ -77,8 +78,8 @@ void addOrUpdateNode(SimpleNodeProvider provider, String path, Map<String, dynam
 
   SimpleNode node = provider.getNode(path);
   if (node.configs[r"$is"] != null &&
-    map[r"$is"] != null &&
-    node.configs[r"$is"] != map[r"$is"]) {
+      map[r"$is"] != null &&
+      node.configs[r"$is"] != map[r"$is"]) {
     provider.removeNode(path);
     provider.addNode(path, map);
     return;
