@@ -63,11 +63,11 @@ class AddLocalEventNode extends SimpleNode {
     DateTime end;
     Map rule;
 
-    {
-      var parts = timeRangeString.split("/");
-      start = DateTime.parse(parts[0]);
-      end = DateTime.parse(parts[1]);
-    }
+
+    var parts = timeRangeString.split("/");
+    start = DateTime.parse(parts[0]);
+    end = DateTime.parse(parts[1]);
+
 
     TimeRange range = new TimeRange(start, end);
 
@@ -81,9 +81,19 @@ class AddLocalEventNode extends SimpleNode {
       event.rule = rule;
     }
 
-    var p = new Path(path);
-    ICalendarLocalSchedule schedule = provider.getNode(p.parent.parent.path);
-    schedule.addStoredEvent(event);
+    ICalendarLocalSchedule schedule = _getParent();
+    if (schedule != null) {
+      schedule.addStoredEvent(event);
+    }
+  }
+
+  ICalendarLocalSchedule _getParent() {
+    var p = parent;
+    while (p != null && p is! ICalendarLocalSchedule) {
+      p = p.parent;
+    }
+
+    return p;
   }
 }
 

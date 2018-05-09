@@ -1,5 +1,6 @@
 name: dslink_schedule
 description: Schedule DSLink
+version: 0.0.5
 dependencies:
   dslink:
     git: https://github.com/IOT-DSA/sdk-dslink-dart.git

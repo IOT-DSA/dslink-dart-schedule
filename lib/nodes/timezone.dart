@@ -31,10 +31,9 @@ class TimezoneNode extends SimpleNode {
       ].contains(value) ? TimezoneEnv.UTC : TimezoneEnv.getLocation(value);
       if (loc != null) {
         schedule.timezone = loc;
-        new Future(() {
-          link.save();
-        });
         schedule.loadSchedule(true);
+
+        link.save();
         return false;
       }
     }
