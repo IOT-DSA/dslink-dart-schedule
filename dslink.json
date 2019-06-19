@@ -7,7 +7,6 @@
     "dart": ">=1.9.0"
   },
   "getDependencies": [
-    "pub get"
   ],
   "configs": {
     "broker": {
