@@ -158,12 +158,12 @@ class AddICalRemoteScheduleNode extends SimpleNode {
   onInvoke(Map<String, dynamic> params) {
     String name = params[_name];
     String url = params[_url];
-    dynamic defaultValue = params[_defaultValue];
+    dynamic val = params[_defaultValue];
 
-    defaultValue = parseInputValue(defaultValue);
+    val = parseInputValue(val);
 
     var rawName = NodeNamer.createName(name);
-    provider.addNode("/$rawName", );
+    provider.addNode("/$rawName", ICalendarRemoteSchedule.def(url, val));
 
     _link.save();
   }
@@ -826,9 +826,9 @@ class ICalendarLocalSchedule extends SimpleNode {
       r"$type": "dynamic"
     });
 
-    TimezoneNode nd = provider.getNode("${path}/${TimezoneNode.pathName}");
+    TimezoneNode nd = provider.getNode("$path/${TimezoneNode.pathName}");
     if (nd == null) {
-      nd = provider.addNode("${path}/${TimezoneNode.pathName}", {
+      nd = provider.addNode("$path/${TimezoneNode.pathName}", {
         r"$name": "Timezone",
         r"$type": "string",
         r"$is": TimezoneNode.isType,
@@ -841,7 +841,7 @@ class ICalendarLocalSchedule extends SimpleNode {
       nd.onSetValue(nd.value);
     }
 
-    (nd as TimezoneNode).schedule = this;
+    nd.schedule = this;
 
     link.addNode("${path}/fetchEvents", {
       r"$name": "Fetch Events",
