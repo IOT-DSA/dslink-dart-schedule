@@ -37,16 +37,20 @@ main(List<String> args) async {
   String basePath = Directory.current.path;
 
   link = new LinkProvider(args, "Schedule-", profiles: {
-    "addiCalRemoteSchedule": (String path) => new AddICalRemoteScheduleNode(path),
-    "addiCalLocalSchedule": (String path) => new AddICalLocalScheduleNode(path),
-    "iCalRemoteSchedule": (String path) => new ICalendarRemoteSchedule(path),
-    "iCalLocalSchedule": (String path) => new ICalendarLocalSchedule(path),
+    AddICalRemoteScheduleNode.isType:
+        (String path) => new AddICalRemoteScheduleNode(path, link),
+    AddICalLocalScheduleNode.isType:
+        (String path) => new AddICalLocalScheduleNode(path, link),
+    ICalendarRemoteSchedule.isType:
+        (String path) => new ICalendarRemoteSchedule(path),
+    ICalendarLocalSchedule.isType:
+        (String path) => new ICalendarLocalSchedule(path),
     "remove": (String path) => new DeleteActionNode.forParent(path, link.provider as MutableNodeProvider, onDelete: () {
       link.save();
     }),
     "event": (String path) => new EventNode(path),
     "addLocalEvent": (String path) => new AddLocalEventNode(path),
-    "httpPort": (String path) => new HttpPortNode(path),
+    HttpPortNode.isType: (String path) => new HttpPortNode(path),
     "editLocalEvent": (String path) => new EditLocalEventNode(path),
     "fetchEvents": (String path) => new FetchEventsNode(path),
     "fetchEventsForEvent": (String path) => new FetchEventsForEventNode(path),
@@ -54,7 +58,13 @@ main(List<String> args) async {
     "fetchSpecialEvents": (String path) => new FetchSpecialEventsNode(path),
     "removeSpecialEvent": (String path) => new RemoveSpecialEventNode(path),
     TimezoneNode.isType: (String path) => new TimezoneNode(path)
-  }, autoInitialize: false);
+  },
+      defaultNodes: {
+        AddICalRemoteScheduleNode.pathName: AddICalRemoteScheduleNode.def(),
+        AddICalLocalScheduleNode.pathName: AddICalLocalScheduleNode.def(),
+        HttpPortNode.pathName: HttpPortNode.def()
+  },
+      autoInitialize: false);
 
   link.configure(optionsHandler: (opts) {
     if (opts["base-path"] != null) {
@@ -86,65 +96,19 @@ main(List<String> args) async {
   link.init();
 
   var provider = link.provider as SimpleNodeProvider;
-
-  link.addNode("/addiCalRemoteSchedule", {
-    r"$is": "addiCalRemoteSchedule",
-    r"$name": "Add Remote Schedule",
-    r"$params": [
-      {
-        "name": "name",
-        "type": "string",
-        "placeholder": "Light Schedule",
-        "description": "Name of the Schedule"
-      },
-      {
-        "name": "url",
-        "type": "string",
-        "placeholder": "http://my.calendar.host/calendar.ics",
-        "description": "URL to the iCalendar File"
-      },
-      {
-        "name": "defaultValue",
-        "type": "dynamic",
-        "description": "Default Value for Schedule",
-        "default": 0
-      }
-    ],
-    r"$invokable": "write"
-  });
+//
+//  link.addNode("/${AddICalRemoteScheduleNode.pathName}",
+//      AddICalRemoteScheduleNode.def());
+//
+//  link.addNode("/${AddICalLocalScheduleNode.pathName}",
+//      AddICalLocalScheduleNode.def());
 
   if (!provider.nodes.containsKey("/httpPort")) {
-    link.addNode("/httpPort", {
-      r"$name": "HTTP Port",
-      r"$type": "int",
-      r"$writable": "write",
-      r"$is": "httpPort",
-      "?value": -1
-    });
+    link.addNode("/${HttpPortNode.pathName}", HttpPortNode.def());
   }
 
   var portValue = link.val("/httpPort");
   await rebindHttpServer(portValue is String ? int.parse(portValue) : portValue);
-
-  link.addNode("/addiCalLocalSchedule", {
-    r"$is": "addiCalLocalSchedule",
-    r"$name": "Add Local Schedule",
-    r"$params": [
-      {
-        "name": "name",
-        "type": "string",
-        "placeholder": "Light Schedule",
-        "description": "Name of the Schedule"
-      },
-      {
-        "name": "defaultValue",
-        "type": "dynamic",
-        "description": "Default Value for Schedule",
-        "default": 0
-      }
-    ],
-    r"$invokable": "write"
-  });
 
   await Future.wait(loadQueue);
   loadQueue = null;
@@ -153,25 +117,55 @@ main(List<String> args) async {
 }
 
 class AddICalRemoteScheduleNode extends SimpleNode {
-  AddICalRemoteScheduleNode(String path) : super(path);
+  static const String pathName = "addiCalRemoteSchedule";
+  static const String isType = "addiCalRemoteSchedule";
+
+  //Params
+  static const String _name = "name";
+  static const String _url = "url";
+  static const String _defaultValue = "defaultValue";
+
+  static Map<String, dynamic> def() => {
+    r"$is": isType,
+    r"$name": "Add Remote Schedule",
+    r"$params": [
+      {
+        "name": _name,
+        "type": "string",
+        "placeholder": "Light Schedule",
+        "description": "Name of the Schedule"
+      },
+      {
+        "name": _url,
+        "type": "string",
+        "placeholder": "http://my.calendar.host/calendar.ics",
+        "description": "URL to the iCalendar File"
+      },
+      {
+        "name": _defaultValue,
+        "type": "dynamic",
+        "description": "Default Value for Schedule",
+        "default": 0
+      }
+    ],
+    r"$invokable": "write"
+  };
+
+  final LinkProvider _link;
+  AddICalRemoteScheduleNode(String path, this._link) : super(path);
 
   @override
   onInvoke(Map<String, dynamic> params) {
-    String name = params["name"];
-    String url = params["url"];
-    dynamic defaultValue = params["defaultValue"];
+    String name = params[_name];
+    String url = params[_url];
+    dynamic defaultValue = params[_defaultValue];
 
     defaultValue = parseInputValue(defaultValue);
 
     var rawName = NodeNamer.createName(name);
-    link.addNode("/${rawName}", {
-      r"$is": "iCalRemoteSchedule",
-      r"$name": name,
-      "@url": url,
-      "@defaultValue": defaultValue
-    });
+    provider.addNode("/$rawName", );
 
-    link.save();
+    _link.save();
   }
 }
 
@@ -319,32 +313,101 @@ class AddLocalEventNode extends SimpleNode {
 }
 
 class AddICalLocalScheduleNode extends SimpleNode {
-  AddICalLocalScheduleNode(String path) : super(path);
+  static const String pathName = "addiCalLocalSchedule";
+  static const String isType = "addiCalLocalSchedule";
+
+  // Params
+  static const String _name = "name";
+  static const String _defaultValue = "defaultValue";
+
+  static Map<String, dynamic> def() => {
+    r"$is": isType,
+    r"$name": "Add Local Schedule",
+    r"$params": [
+      {
+        "name": _name,
+        "type": "string",
+        "placeholder": "Light Schedule",
+        "description": "Name of the Schedule"
+      },
+      {
+        "name": _defaultValue,
+        "type": "dynamic",
+        "description": "Default Value for Schedule",
+        "default": 0
+      }
+    ],
+    r"$invokable": "write"
+  };
+
+  final LinkProvider _link;
+  AddICalLocalScheduleNode(String path, this._link) : super(path);
 
   @override
   onInvoke(Map<String, dynamic> params) {
-    String name = params["name"];
-    dynamic defaultValue = params["defaultValue"];
+    String name = params[_name];
+    dynamic def = params[_defaultValue];
 
-    defaultValue = parseInputValue(defaultValue);
+    def = parseInputValue(def);
 
     var rawName = NodeNamer.createName(name);
-    link.addNode("/${rawName}", {
-      r"$is": "iCalLocalSchedule",
-      r"$name": name,
-      "@defaultValue": defaultValue
-    });
+    provider.addNode("/$rawName", ICalendarLocalSchedule.def(def));
 
-    link.save();
+    _link.save();
   }
 }
 
 List<Future> loadQueue;
 
 class ICalendarRemoteSchedule extends SimpleNode {
-  dynamic get defaultValue => attributes[r"@defaultValue"];
-  String get url => attributes["@url"];
-  String get backupCalendar => attributes["@calendar"];
+  static const String isType = "iCalRemoteSchedule";
+  // Attributes
+  static const String _defaultValue = '@defaultValue';
+  static const String _url = '@url';
+  static const String _calendar = '@calendar';
+  // Value Nodes
+  static const String _current = 'current';
+  static const String _next = 'next';
+  static const String _next_ts = 'next_ts';
+  static const String _stc = 'stc';
+  static const String _events = 'events';
+
+  static const String _remove = 'remove';
+
+  dynamic get defaultValue => attributes[_defaultValue];
+  String get url => attributes[_url];
+  String get backupCalendar => attributes[_calendar];
+
+  static Map<String, dynamic> def(String url, dynamic val) => {
+    r"$is": isType,
+    "@url": url,
+    "@defaultValue": val,
+    _current: {
+      r'$name': 'Current Value',
+      r'$type': 'dynamic'
+    },
+    _next: {
+      r'$name': 'Next Value',
+      r'$type': 'dynamic'
+    },
+    _next_ts: {
+      r'$name': 'Next Value Timestamp',
+      r'$type': 'dynamic'
+    },
+    _stc: {
+      r'$name': 'Next Value Timer',
+      r'$type': 'number',
+      r'@unit': 'seconds'
+    },
+    _events: {
+      r'$name': 'Events'
+    },
+    _remove: {
+      r'$is': _remove,
+      r'$name': 'Remove',
+      r'$invokable': 'write'
+    }
+  };
 
   ICalendarRemoteSchedule(String path) : super(path);
 
@@ -352,37 +415,6 @@ class ICalendarRemoteSchedule extends SimpleNode {
 
   @override
   onCreated() {
-    link.addNode("${path}/current", {
-      r"$name": "Current Value",
-      r"$type": "dynamic"
-    });
-
-    link.addNode("${path}/next", {
-      r"$name": "Next Value",
-      r"$type": "dynamic"
-    });
-
-    link.addNode("${path}/next_ts", {
-      r"$name": "Next Value Timestamp",
-      r"$type": "dynamic"
-    });
-
-    link.addNode("${path}/stc", {
-      r"$name": "Next Value Timer",
-      r"$type": "number",
-      "@unit": "seconds"
-    });
-
-    link.addNode("${path}/events", {
-      r"$name": "Events"
-    });
-
-    link.addNode("${path}/remove", {
-      r"$name": "Remove",
-      r"$invokable": "write",
-      r"$is": "remove"
-    });
-
     var future = loadSchedule();
 
     if (loadQueue != null) {
@@ -413,12 +445,12 @@ class ICalendarRemoteSchedule extends SimpleNode {
       }
 
       link.removeNode("${path}/error");
-      link.getNode("${path}/events").children.keys.toList().forEach((x) {
-        var n = link.getNode("${path}/events/${x}");
+      link.getNode("$path/$_events").children.keys.toList().forEach((x) {
+        var n = link.getNode("$path/$_events/$x");
         if (n is EventNode) {
           n.flagged = true;
         }
-        link.removeNode("${path}/events/${x}");
+        link.removeNode("$path/$_events/$x");
       });
 
       // Wait so that the removing of those events can be flushed.
@@ -443,15 +475,15 @@ class ICalendarRemoteSchedule extends SimpleNode {
       }
 
       var func = (ValueAtTime v) {
-        link.val("${path}/current", v.value);
+        link.val("$path/$_current", v.value);
         next = state.getNext();
         if (next != null) {
-          link.val("${path}/next", next.value);
-          link.val("${path}/next_ts", next.time.toIso8601String());
+          link.val("$path/$_next", next.value);
+          link.val("$path/$_next_ts", next.time.toIso8601String());
           nextTimestamp = next.time;
         } else {
-          link.val("${path}/next", defaultValue);
-          link.val("${path}/next_ts", v.endsAt.toIso8601String());
+          link.val("$path/$_next", defaultValue);
+          link.val("$path/$_next_ts", v.endsAt.toIso8601String());
           nextTimestamp = v.endsAt;
         }
       };
@@ -469,7 +501,7 @@ class ICalendarRemoteSchedule extends SimpleNode {
           } else {
             duration = duration.abs();
           }
-          link.val("${path}/stc", duration.inSeconds);
+          link.val("$path/$_stc", duration.inSeconds);
         }
       });
 
@@ -481,7 +513,7 @@ class ICalendarRemoteSchedule extends SimpleNode {
 
         var map = event.asNode(i);
 
-        SimpleNode eventNode = link.addNode("${path}/events/${i}", map);
+        SimpleNode eventNode = link.addNode("$path/$_events/$i", map);
         eventNode.updateList(r"$name");
       }
 
@@ -570,6 +602,12 @@ class ICalendarRemoteSchedule extends SimpleNode {
 }
 
 class ICalendarLocalSchedule extends SimpleNode {
+  static const String isType = 'iCalLocalSchedule';
+  static Map<String, dynamic> def(dynamic defaultValue) => {
+    r"$is": isType,
+    "@defaultValue": defaultValue
+  };
+
   Location timezone;
 
   dynamic get defaultValue => attributes[r"@defaultValue"];
@@ -1236,6 +1274,16 @@ class ICalendarLocalSchedule extends SimpleNode {
 
 class HttpPortNode extends SimpleNode {
   HttpPortNode(String path) : super(path);
+  static const String pathName = "httpPort";
+  static const String isType = "httpPort";
+
+  static Map<String, dynamic> def() => {
+    r'$is': isType,
+    r"$name": "HTTP Port",
+    r"$type": "int",
+    r"$writable": "write",
+    "?value": -1
+  };
 
   @override
   onSetValue(dynamic val) {
