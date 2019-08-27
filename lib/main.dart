@@ -54,9 +54,11 @@ main(List<String> args) async {
     "editLocalEvent": (String path) => new EditLocalEventNode(path),
     "fetchEvents": (String path) => new FetchEventsNode(path),
     "fetchEventsForEvent": (String path) => new FetchEventsForEventNode(path),
-    "addLocalSpecialEvent": (String path) => new AddSpecialEventNode(path),
-    "fetchSpecialEvents": (String path) => new FetchSpecialEventsNode(path),
-    "removeSpecialEvent": (String path) => new RemoveSpecialEventNode(path),
+    AddSpecialEventNode.isType: (String path) => new AddSpecialEventNode(path),
+    FetchSpecialEventsNode.isType:
+        (String path) => new FetchSpecialEventsNode(path),
+    RemoveSpecialEventNode.isType:
+        (String path) => new RemoveSpecialEventNode(path),
     TimezoneNode.isType: (String path) => new TimezoneNode(path)
   },
       defaultNodes: {
@@ -103,11 +105,11 @@ main(List<String> args) async {
 //  link.addNode("/${AddICalLocalScheduleNode.pathName}",
 //      AddICalLocalScheduleNode.def());
 
-  if (!provider.nodes.containsKey("/httpPort")) {
+  if (!provider.nodes.containsKey("/${HttpPortNode.pathName}")) {
     link.addNode("/${HttpPortNode.pathName}", HttpPortNode.def());
   }
 
-  var portValue = link.val("/httpPort");
+  var portValue = link.val("/${HttpPortNode.pathName}");
   await rebindHttpServer(portValue is String ? int.parse(portValue) : portValue);
 
   await Future.wait(loadQueue);
@@ -756,7 +758,7 @@ class ICalendarLocalSchedule extends SimpleNode {
         rule["BYDAY"] = ical.genericWeekdayToICal(d["weekday"].toString());
         rule["FREQ"] = type = "DAILY";
       }
-
+      // [{"start": 28800000, "finish" : 32400000, "duration": 3600000}]
       List<Map> times = e["times"];
       for (Map t in times) {
         int start = toInt(t["start"]);
@@ -919,83 +921,9 @@ class ICalendarLocalSchedule extends SimpleNode {
         ],
         r"$invokable": "write"
       },
-      "addSpecialEvent": {
-        r"$name": "Add Special Event",
-        r"$is": "addLocalSpecialEvent",
-        r"$params": [
-          {
-            "name": "Name",
-            "type": "string"
-          },
-          {
-            "name": "Type",
-            "type": "enum[Date,DateRange]"
-          },
-          {
-            "name": "Date",
-            "type": "string",
-            "editor": "textarea"
-          },
-          {
-            "name": "Times",
-            "type": "string",
-            "editor": "textarea"
-          },
-          {
-            "name": "ReplacementId",
-            "type": "string"
-          }
-        ],
-        r"$columns": [
-          {
-            "name": "CreatedId",
-            "type": "string"
-          }
-        ],
-        r"$invokable": "write",
-        r"$actionGroup": "Advanced"
-      },
-      "fetchSpecialEvents": {
-        r"$name": "Fetch Special Events",
-        r"$is": "fetchSpecialEvents",
-        r"$columns": [
-          {
-            "name": "Id",
-            "type": "string"
-          },
-          {
-            "name": "Name",
-            "type": "string"
-          },
-          {
-            "name": "Type",
-            "type": "string"
-          },
-          {
-            "name": "Date",
-            "type": "string"
-          },
-          {
-            "name": "Times",
-            "type": "string"
-          }
-        ],
-        r"$result": "table",
-        r"$invokable": "read",
-        r"$actionGroup": "Advanced"
-      },
-      "removeSpecialEvent": {
-        r"$name": "Remove Special Event",
-        r"$invokable": "write",
-        r"$params": [
-          {
-            "name": "Id",
-            "type": "string"
-          }
-        ],
-        r"$actionGroup": "Advanced",
-        r"$is": "removeSpecialEvent"
-      }
+      AddSpecialEventNode.pathName: AddSpecialEventNode.def(),
+      FetchSpecialEventsNode.pathName: FetchSpecialEventsNode.def(),
+      RemoveSpecialEventNode.pathName: RemoveSpecialEventNode.def()
     });
 
     link.addNode("${path}/remove", {
@@ -1421,30 +1349,126 @@ class FetchEventsForEventNode extends SimpleNode {
 }
 
 class AddSpecialEventNode extends SimpleNode {
+  static const String isType = 'addLocalSpecialEvent';
+  static const String pathName = 'addSpecialEvent';
+
+  // Params
+  static const String _name = 'Name';
+  static const String _type = 'Type';
+  static const String _date = 'Date';
+  static const String _times = 'Times';
+  static const String _replaceId = 'ReplacementId';
+
+  // Columns (return values)
+  static const String _createdId = 'CreatedId';
+
+
+  static Map<String, dynamic> def() => {
+    r"$name": "Add Special Event",
+    r"$is": isType,
+    r"$params": [
+      {
+        "name": _name,
+        "type": "string"
+      },
+      {
+        "name": _type,
+        "type": "enum[Date,DateRange]"
+      },
+      {
+        "name": _date,
+        "type": "string",
+        "editor": "textarea"
+      },
+      {
+        "name": _times,
+        "type": "string",
+        "editor": "textarea"
+      },
+      {
+        "name": _replaceId,
+        "type": "string"
+      }
+    ],
+    r"$columns": [
+      {
+        "name": _createdId,
+        "type": "string"
+      }
+    ],
+    r"$invokable": "write",
+    r"$actionGroup": "Advanced"
+  };
+
   @override
   AddSpecialEventNode(String path) : super(path);
 
   @override
-  onInvoke(Map<String, dynamic> params) async {
-    String name = params["Name"];
-    String type = params["Type"];
-    String dateString = params["Date"];
-    String timesString = params["Times"];
+  Future onInvoke(Map<String, dynamic> params) async {
+    String name = params[_name];
+    String type = params[_type];
+    String dateString = params[_date];
+    String timesString = params[_times];
 
+    ArgumentError err;
     var date = JSON.decode(dateString);
+    if (date is! Map) {
+      // mbutler: Need to use Future.error because otherwise it throws before
+      // entering new event loop resulting in DSLink Crash at Invoke rather
+      // than caught by the Future
+      err = new ArgumentError.value(date, _date, 'Expected format: ' +
+          '{"year": 2019, "month": 1, "day": 27, "weekday": "MONDAY"}');
+    }
+
     var times = JSON.decode(timesString);
+    if (times is Map) {
+      times = [times];
+    } else if (times is! List) {
+      // mbutler: Need to use Future.error because otherwise it throws before
+      // entering new event loop resulting in DSLink Crash at Invoke rather
+      // than caught by the Future
+      var err = new ArgumentError.value(JSON.encode(times), _times, 'Expected format: ' +
+        '[{"start": 28800000, "finish" : 32400000, "duration": 3600000}]');
 
-    String id = params["ReplacementId"] is! String ?
-      generateToken() :
-      params["ReplacementId"];
+      return new Future.error(err);
+    } else if (times is List) {
+      if (times.isEmpty) {
+        err = new ArgumentError.value(JSON.encode(times), _times, ' Expected format: ' +
+            '[{"start": 28800000, "finish" : 32400000, "duration": 3600000}]');
+      }
 
-    if (id.trim().isEmpty) {
-      id = generateToken();
+      for (var el in times) {
+        if (el is! Map || !(el.containsKey('start') &&
+            (el.containsKey('finish') || el.containsKey('duration')))) {
+          err = new ArgumentError.value(JSON.encode(el), _times, ' Expected format: ' +
+              '[{"start": 28800000, "finish" : 32400000, "duration": 3600000}]');
+          break;
+        }
+      }
+    }
+
+    if (err != null) {
+      return new Future.error(err);
     }
 
     var p = new Path(path);
     ICalendarLocalSchedule schedule = link.getNode(p.parent.parent.path);
-    var fe = schedule.specialEvents.firstWhere((e) => e["id"] == id, orElse: () => null);
+
+    int ind = -1;
+    String id = params[_replaceId];
+
+    if (id == null || id.trim().isEmpty) {
+      id = generateToken();
+    } else {
+      for (var i = 0; i < schedule.specialEvents.length; i++) {
+        if (schedule.specialEvents[i]['id'] == id) {
+          ind = i;
+          break;
+        }
+      }
+    }
+
+    //var fe = schedule.specialEvents.firstWhere((e) => e["id"] == id, orElse: () => null);
     var m = {
       "type": type == null ? "Date" : type,
       "date": date,
@@ -1453,8 +1477,8 @@ class AddSpecialEventNode extends SimpleNode {
       "id":  id
     };
 
-    if (fe != null) {
-      schedule.specialEvents[schedule.specialEvents.indexOf(fe)] = m;
+    if (ind != -1) {
+      schedule.specialEvents[ind] = m;
     } else {
       schedule.specialEvents.add(m);
     }
@@ -1468,6 +1492,46 @@ class AddSpecialEventNode extends SimpleNode {
 }
 
 class FetchSpecialEventsNode extends SimpleNode {
+  static const String isType = 'fetchSpecialEvents';
+  static const String pathName = 'fetchSpecialEvents';
+
+  // Columns (return values)
+  static const String _id = 'Id';
+  static const String _name = 'Name';
+  static const String _type = 'Type';
+  static const String _date = 'Date';
+  static const String _time = 'Times';
+
+  static Map<String, dynamic> def() => {
+    r"$name": "Fetch Special Events",
+    r"$is": isType,
+    r"$columns": [
+      {
+        "name": _id,
+        "type": "string"
+      },
+      {
+        "name": _name,
+        "type": "string"
+      },
+      {
+        "name": _type,
+        "type": "string"
+      },
+      {
+        "name": _date,
+        "type": "string"
+      },
+      {
+        "name": _time,
+        "type": "string"
+      }
+    ],
+    r"$result": "table",
+    r"$invokable": "read",
+    r"$actionGroup": "Advanced"
+  };
+
   FetchSpecialEventsNode(String path) : super(path);
 
   @override
@@ -1487,13 +1551,32 @@ class FetchSpecialEventsNode extends SimpleNode {
 }
 
 class RemoveSpecialEventNode extends SimpleNode {
+  static const String isType = 'removeSpecialEvent';
+  static const String pathName = 'removeSpecialEvent';
+  
+  // Params
+  static const String _id = 'Id';
+
+  static Map<String, dynamic> def() => {
+    r"$name": "Remove Special Event",
+    r"$invokable": "write",
+    r"$params": [
+      {
+        "name": _id,
+        "type": "string"
+      }
+    ],
+    r"$actionGroup": "Advanced",
+    r"$is": isType
+  };
+
   RemoveSpecialEventNode(String path) : super(path);
 
   @override
   onInvoke(Map<String, dynamic> params) async {
     var p = new Path(path);
     ICalendarLocalSchedule schedule = link.getNode(p.parent.parent.path);
-    schedule.specialEvents.removeWhere((e) => e["id"] == params["Id"]);
+    schedule.specialEvents.removeWhere((e) => e["id"] == params[_id]);
     await schedule.loadSchedule(false);
   }
 }
