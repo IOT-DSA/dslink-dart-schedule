@@ -1,5 +1,37 @@
 part of dslink.schedule.main;
 
+HttpServer server;
+
+rebindHttpServer(int port) async {
+  // TODO: (mbulter) WTF? No odd ports?
+  if (!port.isEven) {
+    return;
+  }
+
+  if (server != null) {
+    server.close(force: true);
+    server = null;
+  }
+  server = await HttpServer.bind("0.0.0.0", port);
+  server.listen(handleHttpRequest, onError: (e, stack) {
+    logger.warning("Error in HTTP Server.", e, stack);
+  }, cancelOnError: false);
+}
+
+ICalendarLocalSchedule findLocalSchedule(String name) {
+  for (SimpleNode node in (link.provider as SimpleNodeProvider).nodes.values) {
+    if (node is! ICalendarLocalSchedule) {
+      continue;
+    }
+
+    if (name == node.displayName || node.path == "/${name}") {
+      return node;
+    }
+  }
+
+  return null;
+}
+
 handleHttpRequest(HttpRequest request) async {
   logger.fine("[Schedule HTTP] ${request.method} ${request.uri}");
   request.headers.forEach((a, b) {
