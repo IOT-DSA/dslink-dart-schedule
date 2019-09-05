@@ -1,15 +1,14 @@
-import 'dart:async';
-import 'dart:io';
-
 import 'package:dslink/dslink.dart';
-import 'package:dslink/utils.dart';
+
+import '../http_server.dart';
 
 class HttpPortNode extends SimpleNode {
   static const String pathName = "httpPort";
   static const String isType = "httpPort";
 
   final LinkProvider _link;
-  HttpPortNode(String path, this._link) : super(path);
+  final HttpProvider server;
+  HttpPortNode(String path, this._link, this.server) : super(path);
 
   static Map<String, dynamic> def() => {
     r'$is': isType,
@@ -30,7 +29,7 @@ class HttpPortNode extends SimpleNode {
     if (val is num && !val.isNaN && (val > 0 || val == -1)) {
       var port = val.toInt();
       updateValue(port);
-      rebindHttpServer(port);
+      server.rebindHttpServer(port);
       _link.save();
       return false;
     } else {

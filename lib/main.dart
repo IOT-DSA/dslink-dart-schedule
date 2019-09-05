@@ -1,35 +1,29 @@
 library dslink.schedule.main;
 
 import "dart:async";
-import "dart:convert";
-import "dart:io";
-import "dart:typed_data";
 
 import "package:dslink/dslink.dart";
 import "package:dslink/nodes.dart";
 import "package:dslink/utils.dart";
 
-import 'package:dslink_schedule/nodes.dart';
-
-import "package:dslink_schedule/tz.dart";
-import "package:dslink_schedule/utils.dart";
-
 import 'package:timezone/standalone.dart';
-import "package:dslink_schedule/ical.dart" as ical;
 
-import "package:path/path.dart" as pathlib;
-import "package:xml/xml.dart" as XML;
+import 'package:dslink_schedule/nodes.dart';
+import "package:dslink_schedule/tz.dart";
 
-part "src/http.dart";
+import 'src/http_server.dart';
 
 LinkProvider link;
 //http.Client httpClient = new http.Client();
 //SimpleNodeProvider provider;
 
 main(List<String> args) async {
+  LinkProvider link;
   List<Future> loadQueue = <Future>[];
 
-  String basePath = Directory.current.path;
+  var server = new HttpProvider();
+
+//  String basePath = Directory.current.path;
 
   link = new LinkProvider(args, "Schedule-", profiles: {
     AddICalRemoteScheduleNode.isType:
@@ -37,7 +31,7 @@ main(List<String> args) async {
     AddICalLocalScheduleNode.isType:
         (String path) => new AddICalLocalScheduleNode(path, link),
     ICalendarRemoteSchedule.isType:
-        (String path) => new ICalendarRemoteSchedule(path, loadQueue),
+        (String path) => new ICalendarRemoteSchedule(path, loadQueue, link),
     ICalendarLocalSchedule.isType:
         (String path) => new ICalendarLocalSchedule(path, loadQueue),
     "remove": (String path) => new DeleteActionNode.forParent(path, link.provider as MutableNodeProvider, onDelete: () {
@@ -45,7 +39,7 @@ main(List<String> args) async {
     }),
     "event": (String path) => new EventNode(path),
     AddLocalEventNode.isType: (String path) => new AddLocalEventNode(path, link),
-    HttpPortNode.isType: (String path) => new HttpPortNode(path, link),
+    HttpPortNode.isType: (String path) => new HttpPortNode(path, link, server),
     EditLocalEventNode.isType: (String path) => new EditLocalEventNode(path),
     FetchEventsNode.isType: (String path) => new FetchEventsNode(path),
     "fetchEventsForEvent": (String path) => new FetchEventsForEventNode(path),
@@ -63,11 +57,11 @@ main(List<String> args) async {
   },
       autoInitialize: false);
 
-  link.configure(optionsHandler: (opts) {
-    if (opts["base-path"] != null) {
-      basePath = opts["base-path"];
-    }
-  });
+//  link.configure(optionsHandler: (opts) {
+//    if (opts["base-path"] != null) {
+//      basePath = opts["base-path"];
+//    }
+//  });
 
   try {
     await initializeTimeZone();
@@ -78,6 +72,7 @@ main(List<String> args) async {
   setLocalLocation(await findTimezoneOnSystem());
 
   link.init();
+  server.provider = link.provider as SimpleNodeProvider;
 
   var provider = link.provider as SimpleNodeProvider;
   if (!provider.nodes.containsKey("/${HttpPortNode.pathName}")) {
@@ -85,7 +80,7 @@ main(List<String> args) async {
   }
 
   var portValue = link.val("/${HttpPortNode.pathName}");
-  await rebindHttpServer(portValue is String ? int.parse(portValue) : portValue);
+  await server.rebindHttpServer(portValue is String ? int.parse(portValue) : portValue);
 
   if (loadQueue.isNotEmpty) await Future.wait(loadQueue);
   loadQueue = null;
@@ -144,8 +139,3 @@ class FetchEventsForEventNode extends SimpleNode {
     return list;
   }
 }
-
-
-
-
-

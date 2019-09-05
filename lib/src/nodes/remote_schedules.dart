@@ -116,7 +116,8 @@ class ICalendarRemoteSchedule extends SimpleNode {
   };
 
   final List<Future> loadQueue;
-  ICalendarRemoteSchedule(String path, this.loadQueue) : super(path);
+  final LinkProvider link;
+  ICalendarRemoteSchedule(String path, this.loadQueue, this.link) : super(path);
 
   Disposable changerDisposable;
 
