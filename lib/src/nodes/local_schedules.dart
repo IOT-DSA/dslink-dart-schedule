@@ -25,24 +25,24 @@ class AddICalLocalScheduleNode extends SimpleNode {
   static const String _defaultValue = "defaultValue";
 
   static Map<String, dynamic> def() => {
-    r"$is": isType,
-    r"$name": "Add Local Schedule",
-    r"$params": [
-      {
-        "name": _name,
-        "type": "string",
-        "placeholder": "Light Schedule",
-        "description": "Name of the Schedule"
-      },
-      {
-        "name": _defaultValue,
-        "type": "dynamic",
-        "description": "Default Value for Schedule",
-        "default": 0
-      }
-    ],
-    r"$invokable": "write"
-  };
+        r"$is": isType,
+        r"$name": "Add Local Schedule",
+        r"$params": [
+          {
+            "name": _name,
+            "type": "string",
+            "placeholder": "Light Schedule",
+            "description": "Name of the Schedule"
+          },
+          {
+            "name": _defaultValue,
+            "type": "dynamic",
+            "description": "Default Value for Schedule",
+            "default": 0
+          }
+        ],
+        r"$invokable": "write"
+      };
 
   final LinkProvider _link;
   AddICalLocalScheduleNode(String path, this._link) : super(path);
@@ -70,42 +70,30 @@ class ICalendarLocalSchedule extends SimpleNode {
   static const String _next_ts = 'next_ts';
   static const String _stc = 'stc';
   static const String _remove = 'remove';
+  static const String _events = 'events';
 
   static Map<String, dynamic> def(String name, dynamic defaultValue) => {
-    r'$name': name,
-    r"$is": isType,
-    "@defaultValue": defaultValue,
-    _current: {
-      r'$name': 'Current Value',
-      r'$type': 'dynamic'
-    },
-    _next: {
-      r'$name': 'Next Value',
-      r'$type': 'dynamic'
-    },
-    _next_ts: {
-      r"$name": "Next Value Timestamp",
-      r"$type": "dynamic"
-    },
-    _stc: {
-      r"$name": "Next Value Timer",
-      r"$type": "number",
-      "@unit": "seconds"
-    },
-    _remove: {
-      r"$name": "Remove",
-      r"$invokable": "write",
-      r"$is": _remove
-    },
-    'events': {
-      r"$name": "Events",
-      AddLocalEventNode.pathName: AddLocalEventNode.def(),
-      AddSpecialEventNode.pathName: AddSpecialEventNode.def(),
-      FetchSpecialEventsNode.pathName: FetchSpecialEventsNode.def(),
-      RemoveSpecialEventNode.pathName: RemoveSpecialEventNode.def()
-    },
-    FetchEventsNode.pathName: FetchEventsNode.def()
-  };
+        r'$name': name,
+        r"$is": isType,
+        "@defaultValue": defaultValue,
+        _current: {r'$name': 'Current Value', r'$type': 'dynamic'},
+        _next: {r'$name': 'Next Value', r'$type': 'dynamic'},
+        _next_ts: {r"$name": "Next Value Timestamp", r"$type": "dynamic"},
+        _stc: {
+          r"$name": "Next Value Timer",
+          r"$type": "number",
+          "@unit": "seconds"
+        },
+        _remove: {r"$name": "Remove", r"$invokable": "write", r"$is": _remove},
+        _events: {
+          r"$name": "Events",
+          AddLocalEventNode.pathName: AddLocalEventNode.def(),
+          AddSpecialEventNode.pathName: AddSpecialEventNode.def(),
+          FetchSpecialEventsNode.pathName: FetchSpecialEventsNode.def(),
+          RemoveSpecialEventNode.pathName: RemoveSpecialEventNode.def()
+        },
+        FetchEventsNode.pathName: FetchEventsNode.def()
+      };
 
   TimezoneEnv.Location timezone;
 
@@ -115,14 +103,14 @@ class ICalendarLocalSchedule extends SimpleNode {
   List<Map> specialEvents = [];
   List<Map> weeklyEvents = [];
 
+  Completer<Null> _loadSchedComp;
+
   final List<Future> _loadQueue;
   ICalendarLocalSchedule(String path, this._loadQueue) : super(path) {
     try {
-      timezone = TimezoneEnv.getLocation(
-          getChild("timezone") == null ?
-          TimezoneEnv.local.name :
-          (getChild("timezone") as SimpleNode).value
-      );
+      timezone = TimezoneEnv.getLocation(getChild("timezone") == null
+          ? TimezoneEnv.local.name
+          : (getChild("timezone") as SimpleNode).value);
     } catch (e) {
       timezone = TimezoneEnv.UTC;
     }
@@ -159,10 +147,7 @@ class ICalendarLocalSchedule extends SimpleNode {
         int day = date[dyn];
 
         return new DateTime(
-            year,
-            month == null ? 1 : month,
-            day == null ? 1 : day
-        );
+            year, month == null ? 1 : month, day == null ? 1 : day);
       }
 
       String _getRecurrence(int idx) {
@@ -188,32 +173,25 @@ class ICalendarLocalSchedule extends SimpleNode {
       DateTime endDate = _getDate(1);
 
       var timeList = e["times"] is List ? e["times"] : [];
-    for (Map t in timeList) {
-    int start = toInt(t["start"]);
-    int end = toInt(t["finish"]);
-    var val = t["value"];
+      for (Map t in timeList) {
+        int start = toInt(t["start"]);
+        int end = toInt(t["finish"]);
+        var val = t["value"];
 
-    if (end == null && t["duration"] != null) {
-    end = start + toInt(t["duration"]);
+        if (end == null && t["duration"] != null) {
+          end = start + toInt(t["duration"]);
+        }
+
+        var strt = startDate.add(new Duration(milliseconds: start));
+        var nd = endDate.add(new Duration(milliseconds: end));
+
+        var id = e["id"] is String ? e["id"] : generateToken(length: 10);
+        var oe = new ical.StoredEvent(id, val, new TimeRange(strt, nd),
+            {"FREQ": _getRecurrence(0), "UNTIL": formatICalendarTime(nd)});
+
+        out.add(oe);
+      }
     }
-
-    var strt = startDate.add(new Duration(milliseconds: start));
-    var nd = endDate.add(new Duration(milliseconds: end));
-
-    var id = e["id"] is String ? e["id"] : generateToken(length: 10);
-    var oe = new ical.StoredEvent(
-    id,
-    val,
-    new TimeRange(strt, nd),
-    {
-    "FREQ": _getRecurrence(0),
-    "UNTIL": formatICalendarTime(nd)
-    }
-    );
-
-    out.add(oe);
-    }
-  }
     return out;
   }
 
@@ -235,8 +213,7 @@ class ICalendarLocalSchedule extends SimpleNode {
         baseDate = new DateTime(
             d["year"] == null ? 2017 : d["year"],
             d["month"] == null ? 1 : d["month"],
-            d["day"] == null ? 1 : d["day"]
-        );
+            d["day"] == null ? 1 : d["day"]);
       }
       String type = "YEARLY";
 
@@ -252,9 +229,7 @@ class ICalendarLocalSchedule extends SimpleNode {
         type = "YEARLY";
       }
 
-      var rule = {
-        "FREQ": type
-      };
+      var rule = {"FREQ": type};
 
       if (d["weekday"] is String) {
         rule["BYDAY"] = ical.genericWeekdayToICal(d["weekday"].toString());
@@ -272,27 +247,50 @@ class ICalendarLocalSchedule extends SimpleNode {
         }
 
         var id = generateToken(length: 30);
-        var event = new ical.StoredEvent(
-            id,
-            val,
-            new TimeRange(
-                baseDate.add(new Duration(milliseconds: start)),
-                baseDate.add(new Duration(milliseconds: finish))
-            ),
-            rule
-        );
+        var event = new ical.StoredEvent(id, val,
+            new TimeRange(baseDate.add(new Duration(milliseconds: start)),
+                baseDate.add(new Duration(milliseconds: finish))),
+            rule);
 
         event.id = e["id"] is String ? e["id"] : generateToken();
 
-    out.add(event);
-  }
-  }
+        out.add(event);
+      }
+    }
 
     return out;
   }
 
+  void _addMissing(String path, Map<String, dynamic> map) {
+    var nd = provider.getNode(path);
+    if (nd != null) return;
+
+    provider.addNode(path, map);
+  }
+
   @override
   onCreated() {
+    _addMissing('$path/$_current',
+        {r'$name': 'Current Value', r'$type': 'dynamic'});
+    _addMissing('$path/$_next', {r'$name': 'Next Value', r'$type': 'dynamic'});
+    _addMissing('$path/$_next_ts',
+        {r"$name": "Next Value Timestamp", r"$type": "dynamic"});
+    _addMissing('$path/$_stc', {
+        r"$name": "Next Value Timer",
+        r"$type": "number",
+        "@unit": "seconds"
+    });
+    _addMissing('$path/$_remove',
+        {r"$name": "Remove", r"$invokable": "write", r"$is": _remove});
+    _addMissing('$path/${FetchEventsNode.pathName}', FetchEventsNode.def());
+    _addMissing('$path/$_events', {
+      r"$name": "Events",
+      AddLocalEventNode.pathName: AddLocalEventNode.def(),
+      AddSpecialEventNode.pathName: AddSpecialEventNode.def(),
+      FetchSpecialEventsNode.pathName: FetchSpecialEventsNode.def(),
+      RemoveSpecialEventNode.pathName: RemoveSpecialEventNode.def()
+    });
+
     if (attributes["@events"] is List) {
       storedEvents.clear();
       for (var element in attributes["@events"]) {
@@ -322,13 +320,8 @@ class ICalendarLocalSchedule extends SimpleNode {
 
     TimezoneNode nd = provider.getNode("$path/${TimezoneNode.pathName}");
     if (nd == null) {
-      nd = provider.addNode("$path/${TimezoneNode.pathName}", {
-        r"$name": "Timezone",
-        r"$type": "string",
-        r"$is": TimezoneNode.isType,
-        "?value": TimezoneEnv.local.name,
-        r"$writable": "write"
-      });
+      nd = provider.addNode("$path/${TimezoneNode.pathName}",
+          TimezoneNode.def(TimezoneEnv.local.name));
       nd.schedule = this;
     } else {
       nd.schedule = this;
@@ -359,53 +352,56 @@ class ICalendarLocalSchedule extends SimpleNode {
 
   Future _loadSchedule([bool isUpdate = false]) async {
     if (isLoadingSchedule) {
-      while (isLoadingSchedule) {
-        await new Future.delayed(const Duration(milliseconds: 50));
-      }
+      return _loadSchedComp.future;
     }
 
+    _loadSchedComp = new Completer<Null>();
     isLoadingSchedule = true;
+
     logger.fine("Schedule '${displayName}': Loading Schedule");
 
     try {
-      provider.removeNode("${path}/error");
-      provider.getNode("${path}/events").children.keys.toList().forEach((x) {
-        if (int.parse(x, onError: (source) => null) != null) {
-          var n = provider.getNode("${path}/events/${x}");
-          if (n is EventNode) {
-            n.flagged = true;
-          }
+      provider.removeNode("$path/error");
+      var evntNode = provider.getNode('$path/$_events');
+      if (evntNode != null) {
+        evntNode.children.keys.toList().forEach((x) {
+          // TODO: (mbutler) will this ever be called? children are tokens not ints.
+          if (int.parse(x, onError: (source) => null) != null) {
+            var n = provider.getNode("$path/$_events/$x");
+            if (n is EventNode) {
+              n.flagged = true;
+            }
 
-          if (!isUpdate) {
-            provider.removeNode("${path}/events/${x}");
+            if (!isUpdate) {
+              provider.removeNode("$path/$_events/$x");
+            }
           }
-        }
-      });
+        });
+      }
 
       // Wait so that the removing of those events can be flushed.
       await new Future.delayed(const Duration(milliseconds: 2));
 
       ical.CalendarObject object;
 
-      {
-        List<ical.StoredEvent> loadedEvents = generateStoredEvents();
+      List<ical.StoredEvent> loadedEvents = generateStoredEvents();
 
-        var data = await ical.generateCalendar(displayName, timezone);
-        var tokens = ical.tokenizeCalendar(data);
-        object = ical.parseCalendarObjects(tokens);
-        rootCalendarObject = object;
-        if (object.properties["VEVENT"] == null) {
-          object.properties["VEVENT"] = [];
+      var data = await ical.generateCalendar(displayName, timezone);
+      var tokens = ical.tokenizeCalendar(data);
+      object = ical.parseCalendarObjects(tokens);
+      rootCalendarObject = object;
+      if (object.properties["VEVENT"] == null) {
+        object.properties["VEVENT"] = [];
+      }
+      List<ical.CalendarObject> fakeEventObjects =
+          object.properties["VEVENT"];
+      for (var n in loadedEvents) {
+        if (n == null) {
+          continue;
         }
-        List<ical.CalendarObject> fakeEventObjects = object.properties["VEVENT"];
-        for (var n in loadedEvents) {
-          if (n == null) {
-            continue;
-          }
-          var e = n.toCalendarObject();
-          e.parent = object;
-          fakeEventObjects.add(n.toCalendarObject());
-        }
+        var e = n.toCalendarObject();
+        e.parent = object;
+        fakeEventObjects.add(n.toCalendarObject());
       }
 
       StringBuffer buff = new StringBuffer();
@@ -414,8 +410,7 @@ class ICalendarLocalSchedule extends SimpleNode {
 
       var events = ical.loadEvents(generatedCalendar, timezone);
       icalProvider = new ical.ICalendarProvider(
-          events.map((x) => new ical.EventInstance(x)).toList()
-      );
+          events.map((x) => new ical.EventInstance(x)).toList());
 
       state = new ValueCalendarState(icalProvider);
       state.defaultValue = new ValueAtTime.forDefault(defaultValue);
@@ -427,32 +422,31 @@ class ICalendarLocalSchedule extends SimpleNode {
         changerDisposable.dispose();
       }
 
-      if (untilTimer != null) {
-        untilTimer.cancel();
-      }
+      if (untilTimer != null && untilTimer.isActive) untilTimer.cancel();
 
       var setNextEvent = (ValueAtTime v) {
-
-        provider.updateValue("${path}/current", v.value);
+        provider.updateValue("${path}/$_current", v.value);
         next = state.getNext();
         if (next != null) {
-          provider.updateValue("${path}/next", next.value);
-          provider.updateValue("${path}/next_ts", next.time.toIso8601String());
+          provider.updateValue("${path}/$_next", next.value);
+          provider.updateValue("${path}/$_next_ts", next.time.toIso8601String());
           nextTimestamp = next.time;
         } else {
-          provider.updateValue("${path}/next", null);
-          provider.updateValue("${path}/next_ts", null);
+          provider.updateValue("${path}/$_next", null);
+          provider.updateValue("${path}/$_next_ts", null);
           nextTimestamp = null;
         }
       };
 
       var firstCurrent = state.getCurrent();
 
-      if (firstCurrent != null) {
-        provider.updateValue("${path}/current", firstCurrent.value);
-      } else {
-        provider.updateValue("${path}/current", defaultValue);
+      var cur = provider.getNode('$path/$_current') as SimpleNode;
+      if (cur == null) {
+        cur = provider.addNode('$path/$_current',
+          {r'$name': 'Current Value', r'$type': 'dynamic'});
       }
+
+      cur.updateValue(firstCurrent?.value ?? defaultValue);
 
       changerDisposable = state.listen(setNextEvent);
 
@@ -486,74 +480,25 @@ class ICalendarLocalSchedule extends SimpleNode {
       for (var event in eventList) {
         i++;
 
-        var map = event.asNode(i);
-        var pid = NodeNamer.createName(map["id"]["?value"]);
+        var eId = event.uuid ?? i;
+        var pid = NodeNamer.createName(eId);
 
-        var rp = "${path}/events/${pid}";
-        addOrUpdateNode(provider, rp, map);
+        var rp = "$path/events/$pid";
+        addOrUpdateNode(provider, rp, EventNode.def(event, i));
         SimpleNode eventNode = provider.getNode(rp);
         eventNode.updateList(r"$is");
-
-        if (event.rule == null) {
-          event.rule = {};
-        }
-
-        String ruleString = "";
-
-        {
-          for (var key in event.rule.keys) {
-            var val = event.rule[key];
-
-            ruleString += "${key}=${val};";
-          }
-
-          if (ruleString.endsWith(";")) {
-            ruleString = ruleString.substring(0, ruleString.length - 1);
-          }
-        }
-
-        addOrUpdateNode(provider, "${rp}/edit", {
-          r"$name": "Edit",
-          r"$params": [
-            {
-              "name": "name",
-              "type": "string",
-              "default": event.name
-            },
-            {
-              "name": "time",
-              "type": "string",
-              "editor": "daterange",
-              "default": "${event.start}/${event.end}"
-            },
-            {
-              "name": "value",
-              "type": "dynamic",
-              "default": event.value
-            },
-            {
-              "name": "rule",
-              "type": "string",
-              "placeholder": "FREQ=DAILY",
-              "default": ruleString
-            }
-          ],
-          r"$is": "editLocalEvent",
-          r"$invokable": "write"
-        });
       }
     } catch (e, stack) {
-      provider.addNode("${path}/error", {
-        r"$name": "Error",
-        r"$type": "string",
-        "?value": e.toString()
-      });
+      provider.addNode("${path}/error",
+          {r"$name": "Error", r"$type": "string", "?value": e.toString()});
 
       logger.warning("Schedule '${displayName}' has an error.", e, stack);
     }
 
+    _loadSchedComp.complete(null);
     isLoadingSchedule = false;
 
+    return _loadSchedComp.future;
 //    link.save();
   }
 
@@ -578,8 +523,11 @@ class ICalendarLocalSchedule extends SimpleNode {
       r"$is": configs[r"$is"],
       r"$name": configs[r"$name"],
       "@url": attributes["@url"],
-      "@defaultValue": attributes["@defaultValue"]
+      "@defaultValue": attributes["@defaultValue"],
     };
+
+    var curMap = (getChild(_current) as SimpleNode)?.save();
+    if (curMap != null && curMap.isNotEmpty) map[_current] = curMap;
 
     if (attributes["@calendar"] != null) {
       map["@calendar"] = attributes["@calendar"];
@@ -617,38 +565,22 @@ class AddLocalEventNode extends SimpleNode {
   static const String _rule = 'rule';
 
   static Map<String, dynamic> def() => {
-    r"$name": "Add Event",
-    r"$is": isType,
-    r"$params": [
-      {
-        "name": _name,
-        "type": "string",
-        "placeholder": "Turn on Light"
-      },
-      {
-        "name": _time,
-        "type": "string",
-        "editor": "daterange"
-      },
-      {
-        "name": _value,
-        "type": "dynamic",
-        "description": "Event Value"
-      },
-      {
-        "name": _rule,
-        "type": "string",
-        "placeholder": "FREQ=DAILY"
-      }
-    ],
-    r"$invokable": "write"
-  };
+        r"$name": "Add Event",
+        r"$is": isType,
+        r"$params": [
+          {"name": _name, "type": "string", "placeholder": "Turn on Light"},
+          {"name": _time, "type": "string", "editor": "daterange"},
+          {"name": _value, "type": "dynamic", "description": "Event Value"},
+          {"name": _rule, "type": "string", "placeholder": "FREQ=DAILY"}
+        ],
+        r"$invokable": "write"
+      };
 
   final LinkProvider _link;
   AddLocalEventNode(String path, this._link) : super(path);
 
   @override
-  onInvoke(Map<String, dynamic> params) async {
+  Future onInvoke(Map<String, dynamic> params) async {
     var name = params[_name];
     var timeRangeString = params[_time];
     var value = parseInputValue(params[_value]);
@@ -666,12 +598,9 @@ class AddLocalEventNode extends SimpleNode {
     DateTime end;
     Map rule;
 
-    {
-      var parts = timeRangeString.split("/");
-      start = DateTime.parse(parts[0]);
-      end = DateTime.parse(parts[1]);
-    }
-
+    var parts = timeRangeString.split("/");
+    start = DateTime.parse(parts[0]);
+    end = DateTime.parse(parts[1]);
     TimeRange range = new TimeRange(start, end);
 
     if (ruleString != null && ruleString.toString().isNotEmpty) {
@@ -689,6 +618,8 @@ class AddLocalEventNode extends SimpleNode {
 
     schedule.storedEvents.removeWhere((x) => x["name"] == name);
     schedule.storedEvents.add(event.encode());
+
+    _link.save();
     await schedule.loadSchedule();
   }
 }
@@ -704,34 +635,26 @@ class EditLocalEventNode extends SimpleNode {
   static const String _rule = 'rule';
 
   static Map<String, dynamic> def(EventDescription event, String rules) => {
-    r"$name": "Edit",
-    r"$is": isType,
-    r"$invokable": "write",
-    r"$params": [
-      {
-        "name": _name,
-        "type": "string",
-        "default": event.name
-      },
-      {
-        "name": _time,
-        "type": "string",
-        "editor": "daterange",
-        "default": "${event.start}/${event.end}"
-      },
-      {
-        "name": _value,
-        "type": "dynamic",
-        "default": event.value
-      },
-      {
-        "name": _rule,
-        "type": "string",
-        "placeholder": "FREQ=DAILY",
-        "default": rules
-      }
-    ]
-  };
+        r"$name": "Edit",
+        r"$is": isType,
+        r"$invokable": "write",
+        r"$params": [
+          {"name": _name, "type": "string", "default": event.name},
+          {
+            "name": _time,
+            "type": "string",
+            "editor": "daterange",
+            "default": "${event.start}/${event.end}"
+          },
+          {"name": _value, "type": "dynamic", "default": event.value},
+          {
+            "name": _rule,
+            "type": "string",
+            "placeholder": "FREQ=DAILY",
+            "default": rules
+          }
+        ]
+      };
 
   EditLocalEventNode(String path) : super(path);
 
@@ -744,7 +667,8 @@ class EditLocalEventNode extends SimpleNode {
 
     var p = new Path(path);
 
-    ICalendarLocalSchedule schedule = provider.getNode(p.parent.parent.parent.path);
+    ICalendarLocalSchedule schedule =
+        provider.getNode(p.parent.parent.parent.path);
 
     String eventId = p.parent.name;
 
@@ -752,12 +676,10 @@ class EditLocalEventNode extends SimpleNode {
     DateTime end;
     Map rule;
 
-    {
-      if (timeRangeString is String) {
-        var parts = timeRangeString.split("/");
-        start = DateTime.parse(parts[0]);
-        end = DateTime.parse(parts[1]);
-      }
+    if (timeRangeString is String) {
+      var parts = timeRangeString.split("/");
+      start = DateTime.parse(parts[0]);
+      end = DateTime.parse(parts[1]);
     }
 
     if (ruleString is String && ruleString.isNotEmpty) {
@@ -768,25 +690,12 @@ class EditLocalEventNode extends SimpleNode {
       Map m = schedule.storedEvents.firstWhere((x) => x["id"] == eventId);
       int myidx = schedule.storedEvents.indexOf(m);
 
-      if (name is String) {
-        m["name"] = name;
-      }
+      if (name is String) m["name"] = name;
+      if (start is DateTime) m["start"] = start.toIso8601String();
+      if (end is DateTime) m["end"] = end.toIso8601String();
+      if (rule is Map) m["rule"] = rule;
 
-      if (start is DateTime) {
-        m["start"] = start.toIso8601String();
-      }
-
-      if (end is DateTime) {
-        m["end"] = end.toIso8601String();
-      }
-
-      if (rule is Map) {
-        m["rule"] = rule;
-      }
-
-      if (params.containsKey("value")) {
-        m["value"] = parseInputValue(val);
-      }
+      if (params.containsKey("value")) m["value"] = parseInputValue(val);
 
       if (myidx >= 0) {
         schedule.storedEvents[myidx] = m;

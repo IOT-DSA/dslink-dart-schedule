@@ -8,6 +8,15 @@ import 'local_schedules.dart' show ICalendarLocalSchedule;
 class TimezoneNode extends SimpleNode {
   static const String isType = "timezone";
   static const String pathName = "timezone";
+
+  static Map<String, dynamic> def(String tzName) => {
+    r'$is': isType,
+    r'$name': 'Timezone',
+    r'$type': 'string',
+    r'?value': tzName,
+    r'$writable': 'write'
+  };
+
   ICalendarLocalSchedule schedule;
 
   LinkProvider _link;

@@ -6,6 +6,8 @@ import "package:dslink/utils.dart";
 
 import "utils.dart";
 
+import 'src/nodes/event.dart';
+
 abstract class CalendarProvider {
   ValueAtTime next(ValueCalendarState state);
   ValueAtTime current(ValueCalendarState state);
@@ -160,6 +162,7 @@ class ValueAtTime {
     return endsAt.difference(TimeUtils.now);
   }
 
+  /// returns `true` if the event has already ended
   bool get hasAlreadyHappened {
     var now = TimeUtils.now;
     return endsAt.isBefore(now) ||
@@ -167,6 +170,8 @@ class ValueAtTime {
       endsAt.difference(now).inSeconds == 0;
   }
 
+  /// returns `true` if the event is currently happening (started prior to now
+  /// and ends after now)
   bool get isHappeningNow {
     var now = TimeUtils.now;
     return time.isBefore(now) &&
@@ -219,54 +224,17 @@ class EventDescription {
       };
     }
 
-    map["fetchEvents"] = {
-      r"$name": "Fetch Events",
-      r"$invokable": "read",
-      r"$is": "fetchEventsForEvent",
-      r"$params": [
-        {
-          "name": "TimeRange",
-          "type": "string",
-          "editor": "daterange"
-        }
-      ],
-      r"$columns": [
-        {
-          "name": "start",
-          "type": "string"
-        },
-        {
-          "name": "end",
-          "type": "string"
-        },
-        {
-          "name": "duration",
-          "type": "number"
-        },
-        {
-          "name": "event",
-          "type": "string"
-        },
-        {
-          "name": "value",
-          "type": "dynamic"
-        }
-      ],
-      r"$result": "table"
-    };
+    map[FetchEventsForEventNode.pathName] = FetchEventsForEventNode.def();
 
     String ruleString = "";
 
-    {
-      for (var key in rule.keys) {
-        var val = rule[key];
+    for (var key in rule.keys) {
+      var val = rule[key];
+      ruleString += "${key}=${val};";
+    }
 
-        ruleString += "${key}=${val};";
-      }
-
-      if (ruleString.endsWith(";")) {
-        ruleString = ruleString.substring(0, ruleString.length - 1);
-      }
+    if (ruleString.endsWith(";")) {
+      ruleString = ruleString.substring(0, ruleString.length - 1);
     }
 
     map["rule"] = {

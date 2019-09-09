@@ -783,7 +783,9 @@ class ICalendarProvider extends CalendarProvider {
     for (var e in events) {
       var cloned = e.iterator.clone();
       var value = e.event.extractValue();
-      thisEvent: while (cloned.moveNext()) {
+
+      thisEvent:
+      while (cloned.moveNext()) {
         var v = new ValueAtTime(
           cloned.current.time,
           value,
@@ -819,6 +821,7 @@ class ICalendarProvider extends CalendarProvider {
   @override
   ValueAtTime next(ValueCalendarState state, {int skip: 0, bool reset: false}) {
     var queue = <EventInstance, ValueAtTime>{};
+
     for (var e in events) {
       var cloned = e.iterator.clone(reset);
       var i = 0;

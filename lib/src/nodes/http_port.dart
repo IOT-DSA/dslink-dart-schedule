@@ -1,6 +1,6 @@
 import 'package:dslink/dslink.dart';
 
-import '../http_server.dart';
+import 'package:dslink_schedule/src/http_server.dart';
 
 class HttpPortNode extends SimpleNode {
   static const String pathName = "httpPort";
