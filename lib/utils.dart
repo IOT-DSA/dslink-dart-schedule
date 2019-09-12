@@ -70,7 +70,6 @@ String formatICalendarTime(DateTime time) {
 }
 
 void addOrUpdateNode(SimpleNodeProvider provider, String path, Map<String, dynamic> map) {
-  print('Adding: $path');
   if (!provider.hasNode(path)) {
     provider.addNode(path, map);
     return;
