@@ -64,7 +64,7 @@ class EventNode extends SimpleNode {
       };
     }
 
-    if (e.isRecurring) {
+    if (!e.isRecurring) {
       map[_start] = {
         r'$name': 'Start',
         r'$type': 'string',
