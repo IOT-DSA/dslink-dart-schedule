@@ -94,6 +94,8 @@ class EventNode extends SimpleNode {
     if (node is ICalendarLocalSchedule && !flagged) {
       if (description.priority != 0) {
         var ind = description.name.lastIndexOf('-');
+        if (ind == -1) ind = description.name.length;
+
         var name = description.name.substring(0, ind);
         node.specialEvents.removeWhere((x) => x['name'] == name);
       } else {
