@@ -186,8 +186,9 @@ class ICalendarLocalSchedule extends SimpleNode {
         var nd = endDate.add(new Duration(milliseconds: end));
 
         var id = e["id"] is String ? e["id"] : generateToken(length: 10);
+        // Priority 1 because it's a special event (top priority)
         var oe = new ical.StoredEvent(id, val, new TimeRange(strt, nd),
-            {"FREQ": _getRecurrence(0), "UNTIL": formatICalendarTime(nd)});
+            {"FREQ": _getRecurrence(0), "UNTIL": formatICalendarTime(nd)}, 1);
 
         out.add(oe);
       }
@@ -247,10 +248,11 @@ class ICalendarLocalSchedule extends SimpleNode {
         }
 
         var id = generateToken(length: 30);
+        // Priority 1 because it's a special event (top priority)
         var event = new ical.StoredEvent(id, val,
             new TimeRange(baseDate.add(new Duration(milliseconds: start)),
                 baseDate.add(new Duration(milliseconds: finish))),
-            rule);
+            rule, 1);
 
         event.id = e["id"] is String ? e["id"] : generateToken();
 
@@ -393,15 +395,15 @@ class ICalendarLocalSchedule extends SimpleNode {
       if (object.properties["VEVENT"] == null) {
         object.properties["VEVENT"] = [];
       }
-      List<ical.CalendarObject> fakeEventObjects =
-          object.properties["VEVENT"];
+
+      // Used just as an alias to the the list (pass by reference)
+      List<ical.CalendarObject> objVevents = object.properties["VEVENT"];
       for (var n in loadedEvents) {
-        if (n == null) {
-          continue;
-        }
+        if (n == null) continue;
+
         var e = n.toCalendarObject();
         e.parent = object;
-        fakeEventObjects.add(n.toCalendarObject());
+        objVevents.add(n.toCalendarObject());
       }
 
       StringBuffer buff = new StringBuffer();

@@ -519,6 +519,7 @@ List<Event> loadEvents(String input, Location timezone) {
     var start = x.properties["DTSTART"];
     var end = x.properties["DTEND"];
     var rrule = x.properties["RRULE"];
+    var priority = x.properties['PRIORITY'] ?? 0;
 
     if (rrule == null) {
       rrule = {
@@ -536,6 +537,7 @@ List<Event> loadEvents(String input, Location timezone) {
     e.start = getDateTimeFromObject(start, timezone);
     e.end = getDateTimeFromObject(end, timezone);
     e.rrule = rrule;
+    e.priority = priority;
     e.uuid = x.properties["UID"];
     e.parseRule();
     events.add(e);
@@ -581,6 +583,7 @@ class Event {
   Rule rule;
   Map rrule;
   String uuid;
+  int priority;
 
   Duration get duration => start.difference(end).abs();
 
@@ -781,6 +784,7 @@ class ICalendarProvider extends CalendarProvider {
   ValueAtTime current(ValueCalendarState state) {
     var queue = <EventInstance, ValueAtTime>{};
     for (var e in events) {
+      print('Event ${e.event.summary} priority: ${e.event.priority}');
       var cloned = e.iterator.clone();
       var value = e.event.extractValue();
 
@@ -959,10 +963,11 @@ class StoredEvent {
   final dynamic value;
   final TimeRange timeRange;
   Map rule;
+  final int priority;
 
   String id;
 
-  StoredEvent(this.name, this.value, this.timeRange, [this.rule]);
+  StoredEvent(this.name, this.value, this.timeRange, [this.rule, this.priority = 0]);
 
   CalendarObject toCalendarObject() {
     var object = new CalendarObject();
@@ -980,11 +985,16 @@ class StoredEvent {
     if (rule != null && rule.isNotEmpty) {
       object.properties["RRULE"] = rule;
     }
+
+    if (priority != 0) {
+      object.properties['PRIORITY'] = priority;
+    }
+
     return object;
   }
 
   void assignID() {
-    id = generateToken();
+    id ??= generateToken();
   }
 
   Map encode() {
@@ -1016,18 +1026,16 @@ class StoredEvent {
       rule = {};
     }
 
-    {
-      var tmp = rule;
-      rule = {};
-      for (String key in tmp.keys) {
-        var next = key.toUpperCase();
-        var value = tmp[key];
-        if (next == "FREQUENCY" || next == "FREQ") {
-          next = "FREQ";
-          value = value.toString().toUpperCase();
-        }
-        rule[next] = value;
+    var tmp = rule;
+    rule = {};
+    for (String key in tmp.keys) {
+      var next = key.toUpperCase();
+      var value = tmp[key];
+      if (next == "FREQUENCY" || next == "FREQ") {
+        next = "FREQ";
+        value = value.toString().toUpperCase();
       }
+      rule[next] = value;
     }
 
     if (start is String) {
@@ -1043,7 +1051,6 @@ class StoredEvent {
     }
 
     var range = new TimeRange(start, end);
-
     var event = new StoredEvent(name, value, range, rule);
     event.id = id;
     if (event.id == null) {

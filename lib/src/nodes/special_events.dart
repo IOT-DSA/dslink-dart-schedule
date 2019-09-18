@@ -63,21 +63,34 @@ class AddSpecialEventNode extends SimpleNode {
 
   @override
   Future onInvoke(Map<String, dynamic> params) async {
+    // Example date: {"year": 2019, "month": 9, "day": 18, "weekday": "WEDNESDAY"}
+    // Example times [{"start": 46800000, "duration": 360000, "value": 42}]
+
     String name = params[_name];
     String type = params[_type];
     String dateString = params[_date];
     String timesString = params[_times];
 
     ArgumentError err;
+    if (dateString == null || dateString.isEmpty) {
+      err = new ArgumentError.value(dateString, _date, 'Expected format: ' +
+          '{"year": 2019, "month": 1, "day": 27, "weekday": "MONDAY"}');
+      return new Future.error(err);
+    }
     var date = JSON.decode(dateString);
     if (date is! Map) {
       // mbutler: Need to use Future.error because otherwise it throws before
       // entering new event loop resulting in DSLink Crash at Invoke rather
       // than caught by the Future
-      err = new ArgumentError.value(date, _date, 'Expected format: ' +
+      err = new ArgumentError.value(dateString, _date, 'Expected format: ' +
           '{"year": 2019, "month": 1, "day": 27, "weekday": "MONDAY"}');
+      return new Future.error(err);
     }
 
+    if (timesString == null || timesString.isEmpty) {
+      err = new ArgumentError.value(timesString, _times, 'Expected format: ' +
+          '[{"start": 28800000, "finish" : 32400000, "duration": 3600000, "value": 42}]');
+    }
     var times = JSON.decode(timesString);
     if (times is Map) {
       times = [times];
@@ -85,21 +98,19 @@ class AddSpecialEventNode extends SimpleNode {
       // mbutler: Need to use Future.error because otherwise it throws before
       // entering new event loop resulting in DSLink Crash at Invoke rather
       // than caught by the Future
-      var err = new ArgumentError.value(JSON.encode(times), _times, 'Expected format: ' +
-          '[{"start": 28800000, "finish" : 32400000, "duration": 3600000}]');
-
-      return new Future.error(err);
+      err = new ArgumentError.value(timesString, _times, 'Expected format: ' +
+          '[{"start": 28800000, "finish" : 32400000, "duration": 3600000, "value": 42}]');
     } else if (times is List) {
       if (times.isEmpty) {
-        err = new ArgumentError.value(JSON.encode(times), _times, ' Expected format: ' +
-            '[{"start": 28800000, "finish" : 32400000, "duration": 3600000}]');
+        err = new ArgumentError.value(timesString, _times, ' Expected format: ' +
+            '[{"start": 28800000, "finish" : 32400000, "duration": 3600000, "value": 42}]');
       }
 
       for (var el in times) {
         if (el is! Map || !(el.containsKey('start') &&
             (el.containsKey('finish') || el.containsKey('duration')))) {
           err = new ArgumentError.value(JSON.encode(el), _times, ' Expected format: ' +
-              '[{"start": 28800000, "finish" : 32400000, "duration": 3600000}]');
+              '[{"start": 28800000, "finish" : 32400000, "duration": 3600000, "value": 42}]');
           break;
         }
       }
