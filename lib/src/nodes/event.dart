@@ -15,6 +15,7 @@ class EventNode extends SimpleNode {
   static const String _rule = 'rule';
   static const String _start = 'start';
   static const String _end = 'end';
+  static const String _desc = r'?description';
 
   static Map<String, dynamic> def(EventDescription e, int i) {
     String ruleString = '';
@@ -30,7 +31,7 @@ class EventNode extends SimpleNode {
     var map = <String, dynamic> {
       r'$is': isType,
       r'$name': e.name,
-      r'?description': e,
+      _desc: e,
       _id: {
         r'$name': 'ID',
         r'$type': 'string',
@@ -91,7 +92,13 @@ class EventNode extends SimpleNode {
     var p = new Path(path);
     var node = provider.getNode(p.parent.parent.path);
     if (node is ICalendarLocalSchedule && !flagged) {
-      node.storedEvents.removeWhere((x) => x["name"] == description.name);
+      if (description.priority != 0) {
+        var ind = description.name.lastIndexOf('-');
+        var name = description.name.substring(0, ind);
+        node.specialEvents.removeWhere((x) => x['name'] == name);
+      } else {
+        node.storedEvents.removeWhere((x) => x["name"] == description.name);
+      }
       node.loadSchedule();
     }
   }

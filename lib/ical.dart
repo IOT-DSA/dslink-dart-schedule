@@ -612,7 +612,7 @@ class Event {
     }
 
     e.rule = rrule;
-
+    e.priority = priority;
     e.duration = duration;
     e.uuid = uuid;
 

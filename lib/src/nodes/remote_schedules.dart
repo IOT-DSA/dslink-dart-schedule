@@ -220,9 +220,8 @@ class ICalendarRemoteSchedule extends SimpleNode {
       for (var event in eventList) {
         i++;
 
-        var map = event.asNode(i);
-
-        SimpleNode eventNode = provider.addNode("$path/$_events/$i", map);
+        SimpleNode eventNode = provider.addNode("$path/$_events/$i",
+            EventNode.def(event, i));
         eventNode.updateList(r"$name");
       }
 

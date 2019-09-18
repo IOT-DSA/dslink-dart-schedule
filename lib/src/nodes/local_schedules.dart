@@ -200,10 +200,9 @@ class ICalendarLocalSchedule extends SimpleNode {
     var out = <ical.StoredEvent>[];
 
     for (Map e in specialEvents) {
-      if (e["type"] != "Date") {
-        continue;
-      }
+      if (e["type"] != "Date") continue;
 
+      String  name = e['name'];
       Map d = e["date"];
 
       DateTime baseDate;
@@ -236,9 +235,10 @@ class ICalendarLocalSchedule extends SimpleNode {
         rule["BYDAY"] = ical.genericWeekdayToICal(d["weekday"].toString());
         rule["FREQ"] = type = "DAILY";
       }
-      // [{"start": 28800000, "finish" : 32400000, "duration": 3600000}]
+      // [{"start": 28800000, "finish" : 32400000, "duration": 3600000, "value": 42}]
       List<Map> times = e["times"];
-      for (Map t in times) {
+      for (var i = 0; i < times.length; i++) {
+        Map t = times[i];
         int start = toInt(t["start"]);
         int finish = toInt(t["finish"]);
         var val = t["value"];
@@ -247,7 +247,12 @@ class ICalendarLocalSchedule extends SimpleNode {
           finish = start + toInt(t["duration"]);
         }
 
-        var id = generateToken(length: 30);
+        String id;
+        if (name != null && name.isNotEmpty) {
+          id = '$name-${i + 1}';
+        } else {
+          id = generateToken(length: 30);
+        }
         // Priority 1 because it's a special event (top priority)
         var event = new ical.StoredEvent(id, val,
             new TimeRange(baseDate.add(new Duration(milliseconds: start)),

@@ -193,76 +193,77 @@ class EventDescription {
   DateTime rawEnd;
   bool isRecurring = false;
   Map rule;
+  int priority = 0;
 
   String uuid;
 
   EventDescription(this.name, this.value);
 
-  Map asNode(int i) {
-    var map = {
-      r"$is": "event",
-      "?description": this,
-      r"$name": name,
-      "id": {
-        r"$name": "ID",
-        r"$type": "string",
-        "?value": uuid == null ? i.toString() : uuid
-      },
-      "value": {
-        r"$name": "Value",
-        r"$type": "dynamic",
-        "?value": value
-      }
-    };
-
-    if (duration != null) {
-      map["duration"] = {
-        r"$name": "Duration",
-        r"$type": "number",
-        "?value": duration.inSeconds,
-        "@unit": "seconds"
-      };
-    }
-
-    map[FetchEventsForEventNode.pathName] = FetchEventsForEventNode.def();
-
-    String ruleString = "";
-
-    for (var key in rule.keys) {
-      var val = rule[key];
-      ruleString += "${key}=${val};";
-    }
-
-    if (ruleString.endsWith(";")) {
-      ruleString = ruleString.substring(0, ruleString.length - 1);
-    }
-
-    map["rule"] = {
-      r"$name": "Rule",
-      r"$type": "string",
-      "?value": ruleString
-    };
-
-    map["remove"] = {
-      r"$name": "Remove",
-      r"$invokable": "write",
-      r"$is": "remove"
-    };
-
-    if (!isRecurring) {
-      map["start"] = {
-        r"$name": "Start",
-        r"$type": "string",
-        "?value": rawStart.toIso8601String()
-      };
-
-      map["end"] = {
-        r"$name": "End",
-        r"$type": "string",
-        "?value": rawEnd.toIso8601String()
-      };
-    }
-
-    return map;
-  }
+//  Map asNode(int i) {
+//    var map = {
+//      r"$is": "event",
+//      "?description": this,
+//      r"$name": name,
+//      "id": {
+//        r"$name": "ID",
+//        r"$type": "string",
+//        "?value": uuid == null ? i.toString() : uuid
+//      },
+//      "value": {
+//        r"$name": "Value",
+//        r"$type": "dynamic",
+//        "?value": value
+//      }
+//    };
+//
+//    if (duration != null) {
+//      map["duration"] = {
+//        r"$name": "Duration",
+//        r"$type": "number",
+//        "?value": duration.inSeconds,
+//        "@unit": "seconds"
+//      };
+//    }
+//
+//    map[FetchEventsForEventNode.pathName] = FetchEventsForEventNode.def();
+//
+//    String ruleString = "";
+//
+//    for (var key in rule.keys) {
+//      var val = rule[key];
+//      ruleString += "${key}=${val};";
+//    }
+//
+//    if (ruleString.endsWith(";")) {
+//      ruleString = ruleString.substring(0, ruleString.length - 1);
+//    }
+//
+//    map["rule"] = {
+//      r"$name": "Rule",
+//      r"$type": "string",
+//      "?value": ruleString
+//    };
+//
+//    map["remove"] = {
+//      r"$name": "Remove",
+//      r"$invokable": "write",
+//      r"$is": "remove"
+//    };
+//
+//    if (!isRecurring) {
+//      map["start"] = {
+//        r"$name": "Start",
+//        r"$type": "string",
+//        "?value": rawStart.toIso8601String()
+//      };
+//
+//      map["end"] = {
+//        r"$name": "End",
+//        r"$type": "string",
+//        "?value": rawEnd.toIso8601String()
+//      };
+//    }
+//
+//    return map;
+//  }
 }
