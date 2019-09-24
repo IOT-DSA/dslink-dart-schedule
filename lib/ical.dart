@@ -782,7 +782,10 @@ class ICalendarProvider extends CalendarProvider {
 
   @override
   ValueAtTime current(ValueCalendarState state) {
+    var today = new DateTime.now();
     var queue = <EventInstance, ValueAtTime>{};
+
+    EventInstance special;
     for (var e in events) {
       print('Event ${e.event.summary} priority: ${e.event.priority}');
       var cloned = e.iterator.clone();
@@ -801,9 +804,21 @@ class ICalendarProvider extends CalendarProvider {
         if (v.hasAlreadyHappened) {
           continue thisEvent;
         }
+
+        if (e.event.priority == 1 && TimeUtils.isSameDay(today, v.time)) {
+          special = e;
+        } else if (special != null) {
+          continue thisEvent;
+        }
+
         queue[e] = v;
         break thisEvent;
       }
+    }
+
+    if (special != null) {
+      queued = queue[special];
+      return queued;
     }
 
     var list = queue.values.toList();
@@ -826,9 +841,13 @@ class ICalendarProvider extends CalendarProvider {
   ValueAtTime next(ValueCalendarState state, {int skip: 0, bool reset: false}) {
     var queue = <EventInstance, ValueAtTime>{};
 
+    var hasSpecial = false;
     for (var e in events) {
       var cloned = e.iterator.clone(reset);
       var i = 0;
+
+      if (e.event.priority != 0) hasSpecial = true;
+
       thisEvent: while (cloned.moveNext()) {
         i++;
         if (skip >= i) {
@@ -860,6 +879,15 @@ class ICalendarProvider extends CalendarProvider {
 
     list.sort((a, b) => b.time.compareTo(a.time));
     var last = list.last;
+
+    if (hasSpecial) {
+      var special = list.lastWhere((val) => val.description.priority != 0);
+      if (TimeUtils.isSameDay(special.time, last.time)) {
+        if (special.hasAlreadyHappened || special.isHappeningNow) return null;
+
+        return special;
+      }
+    }
 
     if (skip == 0) {
       if (queued != null &&
