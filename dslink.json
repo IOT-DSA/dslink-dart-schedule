@@ -1,13 +1,12 @@
 {
   "name": "dslink-dart-schedule",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "description": "Schedule DSLink",
   "main": "bin/run.dart",
   "engines": {
-    "dart": ">=1.9.0"
+    "dart": ">=1.13.0"
   },
-  "getDependencies": [
-  ],
+  "getDependencies": [],
   "configs": {
     "broker": {
       "type": "url"

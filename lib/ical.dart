@@ -519,6 +519,7 @@ List<Event> loadEvents(String input, Location timezone) {
     var start = x.properties["DTSTART"];
     var end = x.properties["DTEND"];
     var rrule = x.properties["RRULE"];
+    var priority = x.properties['PRIORITY'] ?? 0;
 
     if (rrule == null) {
       rrule = {
@@ -536,6 +537,7 @@ List<Event> loadEvents(String input, Location timezone) {
     e.start = getDateTimeFromObject(start, timezone);
     e.end = getDateTimeFromObject(end, timezone);
     e.rrule = rrule;
+    e.priority = priority;
     e.uuid = x.properties["UID"];
     e.parseRule();
     events.add(e);
@@ -581,6 +583,7 @@ class Event {
   Rule rule;
   Map rrule;
   String uuid;
+  int priority;
 
   Duration get duration => start.difference(end).abs();
 
@@ -609,7 +612,7 @@ class Event {
     }
 
     e.rule = rrule;
-
+    e.priority = priority;
     e.duration = duration;
     e.uuid = uuid;
 
@@ -779,11 +782,17 @@ class ICalendarProvider extends CalendarProvider {
 
   @override
   ValueAtTime current(ValueCalendarState state) {
+    var today = new DateTime.now();
     var queue = <EventInstance, ValueAtTime>{};
+
+    EventInstance special;
     for (var e in events) {
+      print('Event ${e.event.summary} priority: ${e.event.priority}');
       var cloned = e.iterator.clone();
       var value = e.event.extractValue();
-      thisEvent: while (cloned.moveNext()) {
+
+      thisEvent:
+      while (cloned.moveNext()) {
         var v = new ValueAtTime(
           cloned.current.time,
           value,
@@ -795,9 +804,21 @@ class ICalendarProvider extends CalendarProvider {
         if (v.hasAlreadyHappened) {
           continue thisEvent;
         }
+
+        if (e.event.priority == 1 && TimeUtils.isSameDay(today, v.time)) {
+          special = e;
+        } else if (special != null) {
+          continue thisEvent;
+        }
+
         queue[e] = v;
         break thisEvent;
       }
+    }
+
+    if (special != null) {
+      queued = queue[special];
+      return queued;
     }
 
     var list = queue.values.toList();
@@ -819,9 +840,14 @@ class ICalendarProvider extends CalendarProvider {
   @override
   ValueAtTime next(ValueCalendarState state, {int skip: 0, bool reset: false}) {
     var queue = <EventInstance, ValueAtTime>{};
+
+    var hasSpecial = false;
     for (var e in events) {
       var cloned = e.iterator.clone(reset);
       var i = 0;
+
+      if (e.event.priority != 0) hasSpecial = true;
+
       thisEvent: while (cloned.moveNext()) {
         i++;
         if (skip >= i) {
@@ -853,6 +879,15 @@ class ICalendarProvider extends CalendarProvider {
 
     list.sort((a, b) => b.time.compareTo(a.time));
     var last = list.last;
+
+    if (hasSpecial) {
+      var special = list.lastWhere((val) => val.description.priority != 0);
+      if (TimeUtils.isSameDay(special.time, last.time)) {
+        if (special.hasAlreadyHappened || special.isHappeningNow) return null;
+
+        return special;
+      }
+    }
 
     if (skip == 0) {
       if (queued != null &&
@@ -956,10 +991,11 @@ class StoredEvent {
   final dynamic value;
   final TimeRange timeRange;
   Map rule;
+  final int priority;
 
   String id;
 
-  StoredEvent(this.name, this.value, this.timeRange, [this.rule]);
+  StoredEvent(this.name, this.value, this.timeRange, [this.rule, this.priority = 0]);
 
   CalendarObject toCalendarObject() {
     var object = new CalendarObject();
@@ -977,11 +1013,16 @@ class StoredEvent {
     if (rule != null && rule.isNotEmpty) {
       object.properties["RRULE"] = rule;
     }
+
+    if (priority != 0) {
+      object.properties['PRIORITY'] = priority;
+    }
+
     return object;
   }
 
   void assignID() {
-    id = generateToken();
+    id ??= generateToken();
   }
 
   Map encode() {
@@ -1013,18 +1054,16 @@ class StoredEvent {
       rule = {};
     }
 
-    {
-      var tmp = rule;
-      rule = {};
-      for (String key in tmp.keys) {
-        var next = key.toUpperCase();
-        var value = tmp[key];
-        if (next == "FREQUENCY" || next == "FREQ") {
-          next = "FREQ";
-          value = value.toString().toUpperCase();
-        }
-        rule[next] = value;
+    var tmp = rule;
+    rule = {};
+    for (String key in tmp.keys) {
+      var next = key.toUpperCase();
+      var value = tmp[key];
+      if (next == "FREQUENCY" || next == "FREQ") {
+        next = "FREQ";
+        value = value.toString().toUpperCase();
       }
+      rule[next] = value;
     }
 
     if (start is String) {
@@ -1040,7 +1079,6 @@ class StoredEvent {
     }
 
     var range = new TimeRange(start, end);
-
     var event = new StoredEvent(name, value, range, rule);
     event.id = id;
     if (event.id == null) {

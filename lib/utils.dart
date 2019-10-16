@@ -55,6 +55,19 @@ class TimeUtils {
 
     return time;
   }
+
+  // Return `true` if both [a] and [b] occur on the same day, based on the
+  // timezone of [a].
+  static bool isSameDay(DateTime a, DateTime b) {
+    var normalizeB = b;
+    if (a.timeZoneOffset != b.timeZoneOffset) {
+      normalizeB = b.add(a.timeZoneOffset - b.timeZoneOffset);
+    }
+
+    return a.year == normalizeB.year &&
+        a.month == normalizeB.month &&
+        a.day == normalizeB.day;
+  }
 }
 
 String formatICalendarTime(DateTime time) {
