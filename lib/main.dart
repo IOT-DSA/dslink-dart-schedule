@@ -48,7 +48,7 @@ main(List<String> args) async {
     FetchSpecialEventsNode.isType:
         (String path) => new FetchSpecialEventsNode(path),
     RemoveSpecialEventNode.isType:
-        (String path) => new RemoveSpecialEventNode(path),
+        (String path) => new RemoveSpecialEventNode(path, link),
     TimezoneNode.isType: (String path) => new TimezoneNode(path, link)
   },
       defaultNodes: {
