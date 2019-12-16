@@ -1,4 +1,5 @@
 name: dslink_schedule
+version: 0.0.5
 description: Schedule DSLink
 dependencies:
   dslink:

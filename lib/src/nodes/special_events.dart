@@ -237,12 +237,15 @@ class RemoveSpecialEventNode extends SimpleNode {
     r"$is": isType
   };
 
-  RemoveSpecialEventNode(String path) : super(path);
+  final LinkProvider _link;
+
+  RemoveSpecialEventNode(String path, this._link) : super(path);
 
   @override
   onInvoke(Map<String, dynamic> params) async {
     var schedule = parent.parent as ICalendarLocalSchedule;
     schedule.specialEvents.removeWhere((e) => e["id"] == params[_id]);
     await schedule.loadSchedule(false);
+    _link.save();
   }
 }

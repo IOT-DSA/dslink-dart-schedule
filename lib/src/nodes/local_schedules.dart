@@ -132,9 +132,7 @@ class ICalendarLocalSchedule extends SimpleNode {
   List<ical.StoredEvent> generateSpecialDateRangeEvents() {
     var out = <ical.StoredEvent>[];
     for (Map e in specialEvents) {
-      if (e["type"] != "Date-Range") {
-        continue;
-      }
+      if (e["type"] != "DateRange") continue;
 
       Map date = e["date"];
 
@@ -163,7 +161,7 @@ class ICalendarLocalSchedule extends SimpleNode {
         if (date["month${idx}"] is int &&
             date["day${idx}"] is int &&
             date["year${idx}"] is int) {
-          r = "YEARLY";
+          r = "DAILY";
         }
 
         return r;
@@ -172,25 +170,32 @@ class ICalendarLocalSchedule extends SimpleNode {
       DateTime startDate = _getDate(0);
       DateTime endDate = _getDate(1);
 
-      var timeList = e["times"] is List ? e["times"] : [];
-      for (Map t in timeList) {
-        int start = toInt(t["start"]);
-        int end = toInt(t["finish"]);
-        var val = t["value"];
+      var numDays = endDate.difference(startDate).inDays;
+      for (var d = 0; d < numDays; d++) {
+        var timeList = e["times"] is List ? e["times"] : [];
+        for (Map t in timeList) {
+          int start = toInt(t["start"]);
+          int end = toInt(t['finish']);
+          var val = t["value"];
 
-        if (end == null && t["duration"] != null) {
-          end = start + toInt(t["duration"]);
+          if (t["duration"] != null) {
+            end = start + toInt(t["duration"]);
+          }
+
+          print('Start: $start and End: $end');
+
+          var strt = startDate.add(new Duration(days: d, milliseconds: start));
+          if (strt.isAfter(endDate)) break;
+
+          var timeEnd = startDate.add(new Duration(days: d, milliseconds: end));
+
+          var id = e["id"] is String ? e["id"] : generateToken(length: 10);
+          // Priority 1 because it's a special event (top priority)
+          var oe = new ical.StoredEvent(id, val, new TimeRange(strt, timeEnd),
+              {"FREQ": _getRecurrence(0), "UNTIL": formatICalendarTime(timeEnd)}, 1);
+
+          out.add(oe);
         }
-
-        var strt = startDate.add(new Duration(milliseconds: start));
-        var nd = endDate.add(new Duration(milliseconds: end));
-
-        var id = e["id"] is String ? e["id"] : generateToken(length: 10);
-        // Priority 1 because it's a special event (top priority)
-        var oe = new ical.StoredEvent(id, val, new TimeRange(strt, nd),
-            {"FREQ": _getRecurrence(0), "UNTIL": formatICalendarTime(nd)}, 1);
-
-        out.add(oe);
       }
     }
     return out;
@@ -367,28 +372,29 @@ class ICalendarLocalSchedule extends SimpleNode {
 
     logger.fine("Schedule '${displayName}': Loading Schedule");
 
-    try {
-      provider.removeNode("$path/error");
-      var evntNode = provider.getNode('$path/$_events');
-      if (evntNode != null) {
-        evntNode.children.keys.toList().forEach((x) {
-          // TODO: (mbutler) will this ever be called? children are tokens not ints.
-          if (int.parse(x, onError: (source) => null) != null) {
-            var n = provider.getNode("$path/$_events/$x");
-            if (n is EventNode) {
-              n.flagged = true;
-            }
+    provider.removeNode("$path/error");
+    var evntNode = provider.getNode('$path/$_events');
 
-            if (!isUpdate) {
-              provider.removeNode("$path/$_events/$x");
-            }
+    if (evntNode != null) {
+      evntNode.children.keys.toList().forEach((x) {
+        // TODO: (mbutler) will this ever be called? children are tokens not ints.
+        if (int.parse(x, onError: (source) => null) != null) {
+          var n = provider.getNode("$path/$_events/$x");
+          if (n is EventNode) {
+            n.flagged = true;
           }
-        });
-      }
 
-      // Wait so that the removing of those events can be flushed.
-      await new Future.delayed(const Duration(milliseconds: 2));
+          if (!isUpdate) {
+            provider.removeNode("$path/$_events/$x");
+          }
+        }
+      });
+    }
 
+    // Wait so that the removing of those events can be flushed.
+    await new Future.delayed(const Duration(milliseconds: 2));
+
+    try {
       ical.CalendarObject object;
 
       List<ical.StoredEvent> loadedEvents = generateStoredEvents();
@@ -487,7 +493,7 @@ class ICalendarLocalSchedule extends SimpleNode {
       for (var event in eventList) {
         i++;
 
-        var eId = event.uuid ?? i;
+        var eId = event.uuid ?? i.toString();
         var pid = NodeNamer.createName(eId);
 
         var rp = "$path/events/$pid";
