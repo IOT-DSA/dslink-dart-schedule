@@ -63,7 +63,7 @@ class AddSpecialEventNode extends SimpleNode {
 
   @override
   Future onInvoke(Map<String, dynamic> params) async {
-    // Example date: {"year": 2019, "month": 9, "day": 18, "weekday": "WEDNESDAY"}
+    // Example date: {"year": 2020, "month": 1, "day": 10, "weekday": "FRIDAY"}
     // Example times [{"start": 46800000, "duration": 360000, "value": 42}]
 
     String name = params[_name];

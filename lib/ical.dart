@@ -846,8 +846,6 @@ class ICalendarProvider extends CalendarProvider {
       var cloned = e.iterator.clone(reset);
       var i = 0;
 
-      if (e.event.priority != 0) hasSpecial = true;
-
       thisEvent: while (cloned.moveNext()) {
         i++;
         if (skip >= i) {
@@ -866,6 +864,8 @@ class ICalendarProvider extends CalendarProvider {
         if (v.hasAlreadyHappened || v.isHappeningNow) {
           continue thisEvent;
         }
+        if (e.event.priority != 0) hasSpecial = true;
+
         queue[e] = v;
         break thisEvent;
       }
@@ -881,11 +881,10 @@ class ICalendarProvider extends CalendarProvider {
     var last = list.last;
 
     if (hasSpecial) {
-      var special = list.lastWhere((val) => val.description.priority != 0);
-      if (TimeUtils.isSameDay(special.time, last.time)) {
-        if (special.hasAlreadyHappened || special.isHappeningNow) return null;
-
-        return special;
+      var special = list.lastWhere((val) => val.description.priority != 0,
+          orElse: () => null);
+      if (special != null && TimeUtils.isSameDay(special.time, last.time)) {
+        if (!special.hasAlreadyHappened && !special.isHappeningNow) return special;
       }
     }
 
