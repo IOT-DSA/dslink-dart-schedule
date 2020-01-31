@@ -787,7 +787,6 @@ class ICalendarProvider extends CalendarProvider {
 
     EventInstance special;
     for (var e in events) {
-      print('Event ${e.event.summary} priority: ${e.event.priority}');
       var cloned = e.iterator.clone();
       var value = e.event.extractValue();
 
@@ -827,6 +826,7 @@ class ICalendarProvider extends CalendarProvider {
       return null;
     }
 
+    // Sorts list from latest to earliest
     list.sort((a, b) => b.time.compareTo(a.time));
     var last = list.last;
 
@@ -877,10 +877,12 @@ class ICalendarProvider extends CalendarProvider {
       return null;
     }
 
+    // Sorts list from latest to earliest
     list.sort((a, b) => b.time.compareTo(a.time));
     var last = list.last;
 
     if (hasSpecial) {
+      // Picks the earliest event
       var special = list.lastWhere((val) => val.description.priority != 0,
           orElse: () => null);
       if (special != null && TimeUtils.isSameDay(special.time, last.time)) {

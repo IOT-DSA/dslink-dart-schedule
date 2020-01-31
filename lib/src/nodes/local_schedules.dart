@@ -11,10 +11,12 @@ import 'package:dslink/utils.dart';
 import 'package:dslink_schedule/utils.dart';
 import 'package:dslink_schedule/calendar.dart';
 import "package:dslink_schedule/ical.dart" as ical;
+import 'package:dslink_schedule/utils.dart';
 
 import 'timezone.dart';
 import 'event.dart';
 import 'special_events.dart';
+
 
 class AddICalLocalScheduleNode extends SimpleNode {
   static const String pathName = "addiCalLocalSchedule";
@@ -170,7 +172,8 @@ class ICalendarLocalSchedule extends SimpleNode {
       DateTime startDate = _getDate(0);
       DateTime endDate = _getDate(1);
 
-      var numDays = endDate.difference(startDate).inDays;
+      // Add 1 to make it "inclusive" not "exclusive" date range
+      var numDays = endDate.difference(startDate).inDays + 1;
       for (var d = 0; d < numDays; d++) {
         var timeList = e["times"] is List ? e["times"] : [];
         for (Map t in timeList) {
@@ -182,12 +185,14 @@ class ICalendarLocalSchedule extends SimpleNode {
             end = start + toInt(t["duration"]);
           }
 
-          print('Start: $start and End: $end');
-
+          // Make sure start time is before final endTime.
           var strt = startDate.add(new Duration(days: d, milliseconds: start));
-          if (strt.isAfter(endDate)) break;
-
           var timeEnd = startDate.add(new Duration(days: d, milliseconds: end));
+          var finalTime = endDate.add(new Duration(milliseconds: end));
+
+          if (!TimeUtils.isSameDay(strt, endDate) && strt.isAfter(finalTime)) {
+            break;
+          }
 
           var id = e["id"] is String ? e["id"] : generateToken(length: 10);
           // Priority 1 because it's a special event (top priority)
