@@ -879,14 +879,22 @@ class ICalendarProvider extends CalendarProvider {
 
     // Sorts list from latest to earliest
     list.sort((a, b) => b.time.compareTo(a.time));
+    // Picks the earliest event
     var last = list.last;
 
     if (hasSpecial) {
-      // Picks the earliest event
-      var special = list.lastWhere((val) => val.description.priority != 0,
-          orElse: () => null);
-      if (special != null && TimeUtils.isSameDay(special.time, last.time)) {
-        if (!special.hasAlreadyHappened && !special.isHappeningNow) return special;
+      ValueAtTime special;
+      // Start from earliest and work down list to later in the day
+      for (var i = list.length - 1; i > 0; i--) {
+        // Not a special event
+        if (list[i].description.priority == 0) continue;
+
+        special = list[i];
+
+        if (special != null && TimeUtils.isSameDay(special.time, last.time) &&
+            !special.hasAlreadyHappened && !special.isHappeningNow) {
+          return special;
+        }
       }
     }
 
