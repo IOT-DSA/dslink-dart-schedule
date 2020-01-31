@@ -245,6 +245,9 @@ class RemoveSpecialEventNode extends SimpleNode {
   onInvoke(Map<String, dynamic> params) async {
     var schedule = parent.parent as ICalendarLocalSchedule;
     schedule.specialEvents.removeWhere((e) => e["id"] == params[_id]);
+
+    provider.removeNode('${parent.path}/${params[_id]}');
+
     await schedule.loadSchedule(false);
     _link.save();
   }

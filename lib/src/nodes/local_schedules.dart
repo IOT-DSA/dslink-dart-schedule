@@ -383,6 +383,7 @@ class ICalendarLocalSchedule extends SimpleNode {
     if (evntNode != null) {
       evntNode.children.keys.toList().forEach((x) {
         // TODO: (mbutler) will this ever be called? children are tokens not ints.
+        // (mbutler) This codepoint is hit with Special Events of DateRange type
         if (int.parse(x, onError: (source) => null) != null) {
           var n = provider.getNode("$path/$_events/$x");
           if (n is EventNode) {
