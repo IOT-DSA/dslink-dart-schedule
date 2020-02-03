@@ -787,7 +787,6 @@ class ICalendarProvider extends CalendarProvider {
 
     EventInstance special;
     for (var e in events) {
-      print('Event ${e.event.summary} priority: ${e.event.priority}');
       var cloned = e.iterator.clone();
       var value = e.event.extractValue();
 
@@ -827,6 +826,7 @@ class ICalendarProvider extends CalendarProvider {
       return null;
     }
 
+    // Sorts list from latest to earliest
     list.sort((a, b) => b.time.compareTo(a.time));
     var last = list.last;
 
@@ -877,14 +877,24 @@ class ICalendarProvider extends CalendarProvider {
       return null;
     }
 
+    // Sorts list from latest to earliest
     list.sort((a, b) => b.time.compareTo(a.time));
+    // Picks the earliest event
     var last = list.last;
 
     if (hasSpecial) {
-      var special = list.lastWhere((val) => val.description.priority != 0,
-          orElse: () => null);
-      if (special != null && TimeUtils.isSameDay(special.time, last.time)) {
-        if (!special.hasAlreadyHappened && !special.isHappeningNow) return special;
+      ValueAtTime special;
+      // Start from earliest and work down list to later in the day
+      for (var i = list.length - 1; i > 0; i--) {
+        // Not a special event
+        if (list[i].description.priority == 0) continue;
+
+        special = list[i];
+
+        if (special != null && TimeUtils.isSameDay(special.time, last.time) &&
+            !special.hasAlreadyHappened && !special.isHappeningNow) {
+          return special;
+        }
       }
     }
 
