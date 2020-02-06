@@ -1,6 +1,6 @@
 {
   "name": "dslink-dart-schedule",
-  "version": "0.0.7",
+  "version": "0.0.8",
   "description": "Schedule DSLink",
   "main": "bin/run.dart",
   "engines": {
