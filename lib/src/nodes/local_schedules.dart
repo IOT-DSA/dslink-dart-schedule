@@ -57,6 +57,11 @@ class AddICalLocalScheduleNode extends SimpleNode {
     def = parseInputValue(def);
 
     var rawName = NodeNamer.createName(name);
+    var exists = provider.getNode('/$rawName');
+    if (exists != null) {
+      throw new StateError('a schedule named "$rawName" already exists');
+    }
+
     provider.addNode("/$rawName", ICalendarLocalSchedule.def(name, def));
 
     _link.save();
