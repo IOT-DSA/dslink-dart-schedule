@@ -451,6 +451,8 @@ class ICalendarLocalSchedule extends SimpleNode {
       if (untilTimer != null && untilTimer.isActive) untilTimer.cancel();
 
       var setNextEvent = (ValueAtTime v) {
+        // Could fire before nodes are initialized on startup.
+        if (provider == null) return;
         provider.updateValue("${path}/$_current", v.value);
         next = state.getNext();
         if (next != null) {
