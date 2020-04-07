@@ -800,13 +800,9 @@ class ICalendarProvider extends CalendarProvider {
           e.event.uuid
         );
 
-        if (v.hasAlreadyHappened) {
-          continue thisEvent;
-        }
-
         if (e.event.priority == 1 && TimeUtils.isSameDay(today, v.time)) {
           special = e;
-        } else if (special != null) {
+        } else if (special != null || v.hasAlreadyHappened) {
           continue thisEvent;
         }
 
@@ -885,15 +881,17 @@ class ICalendarProvider extends CalendarProvider {
     if (hasSpecial) {
       ValueAtTime special;
       // Start from earliest and work down list to later in the day
-      for (var i = list.length - 1; i > 0; i--) {
+      for (var i = list.length - 1; i >= 0; i--) {
         // Not a special event
         if (list[i].description.priority == 0) continue;
 
         special = list[i];
 
-        if (special != null && TimeUtils.isSameDay(special.time, last.time) &&
-            !special.hasAlreadyHappened && !special.isHappeningNow) {
-          return special;
+        if (special != null && TimeUtils.isSameDay(special.time, last.time)) {
+          if (!special.hasAlreadyHappened && !special.isHappeningNow) {
+            return special;
+          }
+          return null;
         }
       }
     }
