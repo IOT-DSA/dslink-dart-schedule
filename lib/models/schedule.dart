@@ -77,13 +77,27 @@ class TimeRange {
   /// Thursday and [TimeRange] is a month, any DateTime that is not on a
   /// Thursday will return false.
   bool sameDay(DateTime day) {
-    // TODO: Test the hell out of this one
-    var diff = day.difference(sDate);
+    // Reset day so it's midnight of that day. Helps prevent issues where
+    // it's the same day, but "day" is later than the time of endDate.
+    day = new DateTime(day.year, day.month, day.day);
+
+    if (frequency == Frequency.Single) {
+      // Check if it's the same day
+      if (sDate.year == day.year && sDate.month == day.month && sDate.day == day.day) {
+        return true;
+      }
+      // Check if it's the same day if the range is longer than a single day
+      if (eDate.year == day.year && eDate.month == day.month && eDate.day == day.day) {
+        return true;
+      }
+    }
+
     // if negative duration then day is prior to the start day.
+    var diff = day.difference(sDate);
     if (diff < zeroDur) return false;
 
-    diff = day.difference(eDate);
     // if greater that means day is after the end date.
+    diff = day.difference(eDate);
     if (diff > zeroDur) return false;
 
     var windowDur = eTime.difference(sTime);
