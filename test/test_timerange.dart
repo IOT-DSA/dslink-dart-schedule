@@ -1,4 +1,4 @@
-import 'package:dslink_schedule/models/schedule.dart';
+import 'package:dslink_schedule/models/timerange.dart';
 
 import 'package:test/test.dart';
 
@@ -67,6 +67,23 @@ void timeRange_constructor() {
   var startDate = new DateTime(2020, 4, 12);
   var endDate = new DateTime(2020, 4, 18);
   var tr = new TimeRange(startTime, endTime, startDate, endDate);
+  expect(tr.frequency, equals(Frequency.Daily));
+  expect(startTime.isAtSameMomentAs(tr.sTime), isTrue);
+  expect(endTime.isAtSameMomentAs(tr.eTime), isTrue);
+  expect(startDate.isAtSameMomentAs(tr.sDate), isTrue);
+  expect(endDate.isAtSameMomentAs(tr.eDate), isTrue);
+  // Should not match
+  expect(tr.sTime.isAtSameMomentAs(tr.sDate), isFalse);
+  expect(tr.eTime.isAtSameMomentAs(tr.eDate), isFalse);
+  expect(tr.sTime.isAtSameMomentAs(tr.eTime), isFalse);
+  expect(tr.sDate.isAtSameMomentAs(tr.eDate), isFalse);
+
+  // Range Constructor default April 12 - April 18, 11:30pm - 12:30am Daily.
+  startTime = new DateTime(2020, 4, 12, 23, 30);
+  endTime = new DateTime(2020, 4, 13, 0, 30);
+  startDate = new DateTime(2020, 4, 12);
+  endDate = new DateTime(2020, 4, 18);
+  tr = new TimeRange(startTime, endTime, startDate, endDate);
   expect(tr.frequency, equals(Frequency.Daily));
   expect(startTime.isAtSameMomentAs(tr.sTime), isTrue);
   expect(endTime.isAtSameMomentAs(tr.eTime), isTrue);
@@ -181,6 +198,26 @@ void timeRange_sameDay() {
   expect(tr.sameDay(new DateTime(2020, 4, 18, 23, 59)), isTrue); // Just prior to midnight
   expect(tr.sameDay(new DateTime(2020, 4, 14)), isTrue); // Midweek
   expect(tr.sameDay(new DateTime(2020, 4, 19)), isFalse); // Next day
+  expect(tr.sameDay(new DateTime(2000, 4, 12)), isFalse); // 20 years earlier
+  expect(tr.sameDay(new DateTime(2040, 4, 12)), isFalse); // 20 years later
+
+  // Range Constructor default April 12 - April 18, 11:30pm - 12:30am Daily.
+  startTime = new DateTime(2020, 4, 12, 23, 30);
+  endTime = new DateTime(2020, 4, 13, 0, 30);
+  startDate = new DateTime(2020, 4, 12);
+  endDate = new DateTime(2020, 4, 19);
+  tr = new TimeRange(startTime, endTime, startDate, endDate);
+  expect(tr.sameDay(startDate), isTrue);
+  expect(tr.sameDay(endDate), isTrue);
+  expect(tr.sameDay(new DateTime(2020, 4, 12)), isTrue); // Midnight day of
+  expect(tr.sameDay(new DateTime(2020, 4, 13)), isTrue); // Midnight day after
+  expect(tr.sameDay(new DateTime(2020, 4, 18)), isTrue); // Midnight of last day
+  expect(tr.sameDay(new DateTime(2020, 4, 12, 23, 59)), isTrue); // Just prior to midnight
+  expect(tr.sameDay(new DateTime(2020, 4, 19, 23, 59)), isTrue); // Just prior to midnight
+  expect(tr.sameDay(new DateTime(2020, 4, 20, 23, 59)), isTrue); // Just prior to midnight
+  expect(tr.sameDay(new DateTime(2020, 4, 14)), isTrue); // Midweek
+  expect(tr.sameDay(new DateTime(2020, 4, 19)), isTrue); // Next day
+  expect(tr.sameDay(new DateTime(2020, 4, 20)), isTrue); // Next day
   expect(tr.sameDay(new DateTime(2000, 4, 12)), isFalse); // 20 years earlier
   expect(tr.sameDay(new DateTime(2040, 4, 12)), isFalse); // 20 years later
 
