@@ -1,6 +1,6 @@
-import 'package:dslink_schedule/models/timerange.dart';
-
 import 'package:test/test.dart';
+
+import 'package:dslink_schedule/models/timerange.dart';
 
 final DaylightSavings = new DateTime(2020, 3, 8, 2);
 
@@ -11,6 +11,13 @@ void main() {
   test("TimeRange throws error", timeRange_constructor_error);
   test("TimeRange.SameDay", timeRange_sameDay);
   test("TimeRange.Includes", timeRange_includes);
+  test("TimeRange.Moment.nextAfter", timeRange_moment_nextAfter);
+  test("TimeRange.Single.nextAfter", timeRange_single_nextAfter);
+  test("TimeRange.Hourly.nextAfter", timeRange_hourly_nextAfter);
+  test("TimeRange.Daily.nextAfter", timeRange_daily_nextAfter);
+  test("TimeRange.Weekly.nextAfter", timeRange_weekly_nextAfter);
+  test("TimeRange.Monthly.nextAfter", timeRange_monthly_nextAfter);
+  test("TimeRange.Yearly.nextAfter", timeRange_yearly_nextAfter);
 }
 
 void timeRange_moment_constructor() {
@@ -542,4 +549,119 @@ void timeRange_includes() {
   expect(tr.includes(new DateTime(2030, 4, 8, 21, 25)), isFalse);
   expect(tr.includes(new DateTime(2020, 4, 12, 22)), isFalse);
   expect(tr.includes(new DateTime(2020, 4, 18, 9, 5)), isFalse);
+}
+
+void timeRange_moment_nextAfter() {
+  var moment = new DateTime(2020, 4, 12, 6, 45);
+  var tr = new TimeRange.moment(moment);
+  expect(tr.nextAfter(new DateTime(2020, 4, 1)), equals(moment));
+  expect(tr.nextAfter(new DateTime(2020, 4, 12)), equals(moment));
+  expect(tr.nextAfter(new DateTime(2020, 4, 12, 6, 45)), equals(moment));
+  expect(tr.nextAfter(new DateTime(2020, 4, 12, 6, 46)), equals(null));
+  expect(tr.nextAfter(new DateTime(2020, 4, 13)), equals(null));
+}
+
+void timeRange_single_nextAfter() {
+  // April 12th 6:45am - 8:45am Single Range.
+  var start = new DateTime(2020, 4, 12, 6, 45);
+  var end = new DateTime(2020, 4, 12, 8, 45);
+  var tr = new TimeRange.single(start, end);
+  expect(tr.nextAfter(new DateTime(2020, 4, 1)), equals(start));
+  expect(tr.nextAfter(new DateTime(2020, 4, 12)), equals(start));
+  expect(tr.nextAfter(new DateTime(2020, 4, 12, 6, 45)), equals(start));
+  expect(tr.nextAfter(new DateTime(2020, 4, 12, 6, 46)), equals(null));
+  expect(tr.nextAfter(new DateTime(2020, 4, 12, 8, 44)), equals(null));
+  expect(tr.nextAfter(new DateTime(2020, 4, 13)), equals(null));
+}
+
+void timeRange_hourly_nextAfter() {
+  // April 12th 6:45am - 7:00am Hourly until 9pm.
+  var startTime = new DateTime(2020, 4, 12, 6, 45);
+  var endTime = new DateTime(2020, 4, 12, 7);
+  var startDate = new DateTime(2020, 4, 12);
+  var endDate = new DateTime(2020, 4, 12, 21);
+  var tr = new TimeRange(startTime, endTime, startDate, endDate, Frequency.Hourly);
+  expect(tr.nextAfter(new DateTime(2020, 4, 1)), equals(startTime));
+  expect(tr.nextAfter(new DateTime(2020, 4, 12)), equals(startTime));
+  expect(tr.nextAfter(new DateTime(2020, 4, 12, 6, 45)), equals(startTime));
+  expect(tr.nextAfter(new DateTime(2020, 4, 12, 6, 46)), equals(new DateTime(2020, 4, 12, 7, 45)));
+  expect(tr.nextAfter(new DateTime(2020, 4, 12, 8, 44)), equals(new DateTime(2020, 4, 12, 8, 45)));
+  expect(tr.nextAfter(new DateTime(2020, 4, 12, 12)),    equals(new DateTime(2020, 4, 12, 12, 45)));
+  expect(tr.nextAfter(new DateTime(2020, 4, 12, 20)),    equals(new DateTime(2020, 4, 12, 20, 45)));
+  expect(tr.nextAfter(new DateTime(2020, 4, 12, 20, 50)), equals(null));
+  expect(tr.nextAfter(new DateTime(2020, 4, 12, 21)), equals(null));
+  expect(tr.nextAfter(new DateTime(2020, 4, 13)), equals(null));
+}
+
+void timeRange_daily_nextAfter() {
+  // April 1st - May 31st 8am - 5:00pm Daily
+  var startTime = new DateTime(2020, 4, 1, 8);
+  var endTime = new DateTime(2020, 4, 1, 17);
+  var startDate = new DateTime(2020, 4, 1);
+  var endDate = new DateTime(2020, 5, 31, 17);
+  var tr = new TimeRange(startTime, endTime, startDate, endDate, Frequency.Daily);
+  expect(tr.nextAfter(new DateTime(2020, 4, 1)), equals(startTime));
+  expect(tr.nextAfter(new DateTime(2020, 4, 1, 7, 59)), equals(startTime));
+  expect(tr.nextAfter(new DateTime(2020, 4, 12)), equals(new DateTime(2020, 4, 12, 8)));
+  expect(tr.nextAfter(new DateTime(2020, 4, 12, 7, 59)), equals(new DateTime(2020, 4, 12, 8)));
+  expect(tr.nextAfter(new DateTime(2020, 4, 12, 8, 1)), equals(new DateTime(2020, 4, 13, 8)));
+  expect(tr.nextAfter(new DateTime(2020, 5, 15, 17, 50)), equals(new DateTime(2020, 5, 16, 8)));
+  expect(tr.nextAfter(new DateTime(2020, 5, 31, 17, 50)), equals(null));
+  expect(tr.nextAfter(new DateTime(2020, 6, 1)), equals(null));
+}
+
+void timeRange_weekly_nextAfter() {
+  // April 4th - July 5th (9am Saturday - 9pm Sundays) Weekly
+  var startTime = new DateTime(2020, 4, 4, 9);
+  var endTime = new DateTime(2020, 4, 5, 21);
+  var startDate = new DateTime(2020, 4, 4);
+  var endDate = new DateTime(2020, 7, 5, 21);
+  var tr = new TimeRange(startTime, endTime, startDate, endDate, Frequency.Weekly);
+  expect(tr.nextAfter(new DateTime(2020, 4, 1)), equals(startTime));
+  expect(tr.nextAfter(new DateTime(2020, 4, 4, 8, 59)), equals(startTime));
+  expect(tr.nextAfter(new DateTime(2020, 4, 4, 10)), equals(new DateTime(2020, 4, 11, 9)));
+  expect(tr.nextAfter(new DateTime(2020, 4, 10)), equals(new DateTime(2020, 4, 11, 9)));
+  expect(tr.nextAfter(new DateTime(2020, 4, 12, 8, 1)), equals(new DateTime(2020, 4, 18, 9)));
+  expect(tr.nextAfter(new DateTime(2020, 5, 15, 17, 50)), equals(new DateTime(2020, 5, 16, 9)));
+  expect(tr.nextAfter(new DateTime(2020, 5, 17, 17, 50)), equals(new DateTime(2020, 5, 23, 9)));
+  expect(tr.nextAfter(new DateTime(2020, 7, 4)), equals(new DateTime(2020, 7, 4, 9)));
+  expect(tr.nextAfter(new DateTime(2020, 7, 4, 9)), equals(new DateTime(2020, 7, 4, 9)));
+  expect(tr.nextAfter(new DateTime(2020, 7, 4, 10)), equals(null));
+  expect(tr.nextAfter(new DateTime(2020, 7, 5)), equals(null));
+}
+
+void timeRange_monthly_nextAfter() {
+  // April 1st - March 31st (First of month, all day)
+  var startTime = new DateTime(2020, 4, 1);
+  var endTime = new DateTime(2020, 4, 1, 23, 59, 59, 999);
+  var startDate = new DateTime(2020, 4, 1);
+  var endDate = new DateTime(2021, 3, 31, 23, 59, 59, 999);
+  var tr = new TimeRange(startTime, endTime, startDate, endDate, Frequency.Monthly);
+  expect(tr.nextAfter(new DateTime(2020, 4, 1)), equals(startTime));
+  expect(tr.nextAfter(new DateTime(2020, 3, 31, 8, 59)), equals(startTime));
+  expect(tr.nextAfter(new DateTime(2020, 4, 4, 10)), equals(new DateTime(2020, 5, 1)));
+  expect(tr.nextAfter(new DateTime(2020, 7, 12, 8, 1)), equals(new DateTime(2020, 8, 1)));
+  expect(tr.nextAfter(new DateTime(2021, 3, 1)), equals(new DateTime(2021, 3, 1)));
+  expect(tr.nextAfter(new DateTime(2021, 3, 1, 0, 0, 1)), equals(null));
+  expect(tr.nextAfter(new DateTime(2021, 3, 25)), equals(null));
+  expect(tr.nextAfter(new DateTime(2021, 4, 1)), equals(null));
+}
+
+void timeRange_yearly_nextAfter() {
+  // April 4st 2020 - April 15st 2030 (4th @ 9am - 15th @ 10pm) yearly
+  var startTime = new DateTime(2020, 4, 4, 9);
+  var endTime =   new DateTime(2020, 4, 15, 22);
+  var startDate = new DateTime(2020, 4, 4);
+  var endDate =   new DateTime(2030, 4, 15, 22);
+  var tr = new TimeRange(startTime, endTime, startDate, endDate, Frequency.Yearly);
+  expect(tr.nextAfter(new DateTime(2020, 4, 1)), equals(startTime));
+  expect(tr.nextAfter(new DateTime(2020, 4, 4, 8, 59)), equals(startTime));
+  expect(tr.nextAfter(new DateTime(2020, 4, 4, 10)), equals(new DateTime(2021, 4, 4, 9)));
+  expect(tr.nextAfter(new DateTime(2020, 4, 10, 8, 1)), equals(new DateTime(2021, 4, 4, 9)));
+  expect(tr.nextAfter(new DateTime(2021, 3, 1)), equals(new DateTime(2021, 4, 4, 9)));
+  expect(tr.nextAfter(new DateTime(2025, 4, 1)), equals(new DateTime(2025, 4, 4, 9)));
+  expect(tr.nextAfter(new DateTime(2025, 7, 1)), equals(new DateTime(2026, 4, 4, 9)));
+  expect(tr.nextAfter(new DateTime(2030, 3, 1, 0, 0, 1)), equals(new DateTime(2030, 4, 4, 9)));
+  expect(tr.nextAfter(new DateTime(2030, 4, 4, 10)), equals(null));
+  expect(tr.nextAfter(new DateTime(2030, 6, 1)), equals(null));
 }

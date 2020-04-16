@@ -162,6 +162,9 @@ class TimeRange {
         break;
       case Frequency.Weekly:
         var offSet = moment.weekday - sDate.weekday;
+        // Dart lets us use a negative day and will properly roll-back to the
+        // previous month without manually handling the changes. So it's okay if
+        // day - offSet is a negative number.
         start = new DateTime(moment.year, moment.month, moment.day - offSet,
             sTime.hour, sTime.minute, sTime.second, sTime.millisecond);
         break;
@@ -177,11 +180,117 @@ class TimeRange {
     }
     end = start.add(period);
 
-    return (moment.isAfter(start) || moment.isAtSameMomentAs(start)) &&
-           (moment.isBefore(end) || moment.isAtSameMomentAs(end));
+    return inRange(moment, start, end);
+  }
+
+  DateTime nextAfter(DateTime moment) {
+    // It's before the first event so send first event
+    if (moment.isBefore(sTime) || moment.isAtSameMomentAs(sTime)) return sTime;
+
+    if (!inRange(moment, sTime, eDate)) {
+      return null;
+    }
+
+    switch (frequency) {
+      case Frequency.Hourly:
+        return _nextHourly(moment);
+      case Frequency.Daily:
+        return _nextDaily(moment);
+      case Frequency.Weekly:
+        return _nextWeekly(moment);
+      case Frequency.Monthly:
+        return _nextMonthly(moment);
+      case Frequency.Yearly:
+        return _nextYearly(moment);
+      default: return null;
+    }
+  }
+
+  DateTime _nextHourly(DateTime moment) {
+    var next = new DateTime(moment.year, moment.month, moment.day,
+        moment.hour, sTime.minute, sTime.second, sTime.millisecond);
+
+    // Double check that the current matching hour would still be in range
+    if (!inRange(next, sTime, eDate)) return null;
+    if (moment.isBefore(next) || moment.isAtSameMomentAs(next)) return next;
+
+    // Not in matching hour, try incrementing one
+    next = new DateTime(moment.year, moment.month, moment.day,
+        next.hour + 1, sTime.minute, sTime.second, sTime.millisecond);
+
+    if (includes(next)) return next;
+    return null;
+  }
+
+  DateTime _nextDaily(DateTime moment) {
+    var next = new DateTime(moment.year, moment.month, moment.day,
+        sTime.hour, sTime.minute, sTime.second, sTime.millisecond);
+
+    // Double check that the current matching day would still be in range
+    if (!inRange(next, sTime, eDate)) return null;
+    if (moment.isBefore(next) || moment.isAtSameMomentAs(next)) return next;
+
+    // Not in matching day, try incrementing one
+    next = new DateTime(next.year, next.month, next.day + 1,
+        sTime.hour, sTime.minute, sTime.second, sTime.millisecond);
+
+    if (includes(next)) return next;
+    return null;
+  }
+
+  DateTime _nextWeekly(DateTime moment) {
+    var offSet = moment.weekday - sDate.weekday;
+    var next = new DateTime(moment.year, moment.month, moment.day - offSet,
+        sTime.hour, sTime.minute, sTime.second, sTime.millisecond);
+
+    if (!inRange(next, sTime, eDate)) return null;
+    if (moment.isBefore(next) || moment.isAtSameMomentAs(next)) return next;
+
+    next = new DateTime(next.year, next.month, next.day + 7,
+        sTime.hour, sTime.minute, sTime.second, sTime.millisecond);
+
+    if (includes(next)) return next;
+    return null;
+  }
+
+  DateTime _nextMonthly(DateTime moment) {
+    var next = new DateTime(moment.year, moment.month, sTime.day,
+        sTime.hour, sTime.minute, sTime.second, sTime.millisecond);
+
+    // Double check that the current matching day would still be in range
+    if (!inRange(next, sTime, eDate)) return null;
+    if (moment.isBefore(next) || moment.isAtSameMomentAs(next)) return next;
+
+    // Not in matching day, try incrementing one
+    next = new DateTime(next.year, next.month + 1, sTime.day,
+        sTime.hour, sTime.minute, sTime.second, sTime.millisecond);
+
+    if (includes(next)) return next;
+    return null;
+  }
+
+  DateTime _nextYearly(DateTime moment) {
+    var next = new DateTime(moment.year, sTime.month, sTime.day,
+        sTime.hour, sTime.minute, sTime.second, sTime.millisecond);
+
+    // Double check that the current matching day would still be in range
+    if (!inRange(next, sTime, eDate)) return null;
+    if (moment.isBefore(next) || moment.isAtSameMomentAs(next)) return next;
+
+    // Not in matching day, try incrementing one
+    next = new DateTime(next.year + 1, sTime.month, sTime.day,
+        sTime.hour, sTime.minute, sTime.second, sTime.millisecond);
+
+    if (includes(next)) return next;
+    return null;
   }
 }
 
 bool sameDayOfYear(DateTime d1, DateTime d2) {
   return d1.day == d2.day && d1.month == d2.month && d1.year == d2.year;
+}
+
+bool inRange(DateTime moment, DateTime start, DateTime end) {
+  return (moment.isAfter(start) || moment.isAtSameMomentAs(start)) &&
+      (moment.isBefore(end) || moment.isAtSameMomentAs(end));
 }
