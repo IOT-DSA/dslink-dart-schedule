@@ -190,13 +190,24 @@ void timeRange_constructor_error() {
       throwsRangeError);
 
   // Range Constructor April 12 9am - 9:15am Hourly
+  // End Date shouldn't be before endTime
   startTime = new DateTime(2020, 4, 12, 9);
-  endTime = new DateTime(2020, 4, 12, 9, 15);
+  endTime =   new DateTime(2020, 4, 12, 9, 15);
   startDate = new DateTime(2020, 4, 12);
-  endDate = new DateTime(2020, 4, 12);
+  endDate =   new DateTime(2020, 4, 12);
   expect(() =>
   new TimeRange(startTime, endTime, startDate, endDate, Frequency.Hourly),
       throwsRangeError);
+
+  // State Errors
+  // Start Time and Date do not match days
+  startTime = new DateTime(2020, 4, 12, 9);
+  endTime =   new DateTime(2020, 4, 12, 9, 15);
+  startDate = new DateTime(2020, 4, 13);
+  endDate =   new DateTime(2020, 4, 13, 9, 15);
+  expect(() =>
+  new TimeRange(startTime, endTime, startDate, endDate, Frequency.Hourly),
+      throwsStateError);
 }
 
 void timeRange_sameDay() {
@@ -411,13 +422,124 @@ void timeRange_includes() {
   expect(tr.includes(new DateTime(2020, 4, 12, 12, 0, 1)), isFalse);
   expect(tr.includes(new DateTime(2020, 4, 12, 8, 59, 59)), isFalse);
 
-  // April 12 @ 9am - 9pm Hourly.
+  // April 12 @ 9am - 9:15 Hourly.
   var startTime = new DateTime(2020, 4, 12, 9);
   var endTime = new DateTime(2020, 4, 12, 9, 15);
   var startDate = new DateTime(2020, 4, 12);
   var endDate = new DateTime(2020, 4, 12, 21, 15);
+  tr = new TimeRange(startTime, endTime, startDate, endDate, Frequency.Hourly);
+  expect(tr.includes(startTime), isTrue);
+  expect(tr.includes(endTime), isTrue);
+  expect(tr.includes(new DateTime(2020, 4, 11, 9, 5)), isFalse);
+  expect(tr.includes(new DateTime(2020, 4, 12, 9, 5)), isTrue);
+  expect(tr.includes(new DateTime(2020, 4, 12, 12, 5)), isTrue);
+  expect(tr.includes(new DateTime(2020, 4, 12, 21, 10)), isTrue);
+  expect(tr.includes(new DateTime(2020, 4, 12, 9, 25)), isFalse);
+  expect(tr.includes(new DateTime(2020, 4, 12, 22)), isFalse);
+  expect(tr.includes(new DateTime(2020, 4, 12, 12, 35)), isFalse);
+
+  // April 12 - 18 @ 9am - 9pm Daily.
+  startTime = new DateTime(2020, 4, 12, 9);
+  endTime = new DateTime(2020, 4, 12, 21);
+  startDate = new DateTime(2020, 4, 12);
+  endDate = new DateTime(2020, 4, 18, 21);
   tr = new TimeRange(startTime, endTime, startDate, endDate);
   expect(tr.includes(startTime), isTrue);
   expect(tr.includes(endTime), isTrue);
+  expect(tr.includes(new DateTime(2020, 4, 11, 9, 5)), isFalse);
   expect(tr.includes(new DateTime(2020, 4, 12, 9, 5)), isTrue);
+  expect(tr.includes(new DateTime(2020, 4, 12, 12, 5)), isTrue);
+  expect(tr.includes(new DateTime(2020, 4, 12, 20, 10)), isTrue);
+  expect(tr.includes(new DateTime(2020, 4, 12, 21, 25)), isFalse);
+  expect(tr.includes(new DateTime(2020, 4, 12, 22)), isFalse);
+  expect(tr.includes(new DateTime(2020, 4, 18, 9, 5)), isTrue);
+  expect(tr.includes(new DateTime(2020, 4, 18, 12, 5)), isTrue);
+  expect(tr.includes(new DateTime(2020, 4, 18, 20, 10)), isTrue);
+  expect(tr.includes(new DateTime(2020, 4, 18, 21, 25)), isFalse);
+  expect(tr.includes(new DateTime(2020, 4, 18, 22)), isFalse);
+  expect(tr.includes(new DateTime(2020, 4, 19, 12, 5)), isFalse);
+
+  // April 11 - May 16 (8am Sat - 8pm Sun) - Weekly
+  startTime = new DateTime(2020, 4, 11, 8);
+  endTime = new DateTime(2020, 4, 12, 20);
+  startDate = new DateTime(2020, 4, 11);
+  endDate = new DateTime(2020, 5, 16, 20);
+  tr = new TimeRange(startTime, endTime, startDate, endDate, Frequency.Weekly);
+  expect(tr.includes(startTime), isTrue);
+  expect(tr.includes(endTime), isTrue);
+  expect(tr.includes(new DateTime(2020, 4, 10, 9, 5)), isFalse);
+  expect(tr.includes(new DateTime(2020, 4, 11, 8, 5)), isTrue);
+  expect(tr.includes(new DateTime(2020, 4, 11, 12, 5)), isTrue);
+  expect(tr.includes(new DateTime(2020, 4, 11, 23, 5)), isTrue);
+  expect(tr.includes(new DateTime(2020, 4, 12, 19, 10)), isTrue);
+  expect(tr.includes(new DateTime(2020, 4, 12, 21, 25)), isFalse);
+  expect(tr.includes(new DateTime(2020, 4, 12, 22)), isFalse);
+  expect(tr.includes(new DateTime(2020, 4, 18, 9, 5)), isTrue);
+  expect(tr.includes(new DateTime(2020, 4, 18, 22, 5)), isTrue);
+  expect(tr.includes(new DateTime(2020, 4, 19, 10, 10)), isTrue);
+  expect(tr.includes(new DateTime(2020, 4, 19, 21, 25)), isFalse);
+  expect(tr.includes(new DateTime(2020, 5, 2, 9, 5)), isTrue);
+  expect(tr.includes(new DateTime(2020, 5, 2, 22, 5)), isTrue);
+  expect(tr.includes(new DateTime(2020, 5, 3, 10, 10)), isTrue);
+  expect(tr.includes(new DateTime(2020, 5, 3, 12, 5)), isTrue);
+  expect(tr.includes(new DateTime(2020, 5, 3, 21, 25)), isFalse);
+  expect(tr.includes(new DateTime(2020, 5, 5, 10, 10)), isFalse);
+  expect(tr.includes(new DateTime(2020, 5, 5, 12, 5)), isFalse);
+  expect(tr.includes(new DateTime(2020, 5, 5, 21, 25)), isFalse);
+  expect(tr.includes(new DateTime(2020, 5, 16, 9, 5)), isTrue);
+  expect(tr.includes(new DateTime(2020, 5, 16, 10, 10)), isTrue);
+  expect(tr.includes(new DateTime(2020, 5, 16, 21, 25)), isFalse);
+
+  // April 1 2020 - April 1 2021 Midnight to 11:59:59pm on the first - Monthly
+  startTime = new DateTime(2020, 4, 1);
+  endTime = new DateTime(2020, 4, 1, 23, 59, 59);
+  startDate = new DateTime(2020, 4, 1);
+  endDate = new DateTime(2021, 3, 31, 23, 59, 59);
+  tr = new TimeRange(startTime, endTime, startDate, endDate, Frequency.Monthly);
+  expect(tr.includes(startTime), isTrue);
+  expect(tr.includes(endTime), isTrue);
+  expect(tr.includes(new DateTime(2020, 4, 10, 9, 5)), isFalse);
+  expect(tr.includes(new DateTime(2020, 4, 1, 8, 5)), isTrue);
+  expect(tr.includes(new DateTime(2020, 4, 1, 12, 5)), isTrue);
+  expect(tr.includes(new DateTime(2020, 4, 1, 19, 10)), isTrue);
+  expect(tr.includes(new DateTime(2020, 4, 1, 23, 5)), isTrue);
+  expect(tr.includes(new DateTime(2020, 4, 2, 21, 25)), isFalse);
+  expect(tr.includes(new DateTime(2020, 4, 12, 22)), isFalse);
+  expect(tr.includes(new DateTime(2020, 4, 18, 9, 5)), isFalse);
+  expect(tr.includes(new DateTime(2020, 4, 18, 22, 5)), isFalse);
+  expect(tr.includes(new DateTime(2020, 4, 19, 21, 25)), isFalse);
+  expect(tr.includes(new DateTime(2020, 5, 1, 8, 5)), isTrue);
+  expect(tr.includes(new DateTime(2020, 5, 1, 12, 5)), isTrue);
+  expect(tr.includes(new DateTime(2020, 6, 1, 23, 5)), isTrue);
+  expect(tr.includes(new DateTime(2020, 7, 1, 9, 5)), isTrue);
+  expect(tr.includes(new DateTime(2020, 12, 1, 19, 10)), isTrue);
+  expect(tr.includes(new DateTime(2021, 3, 1, 19, 10)), isTrue);
+  expect(tr.includes(new DateTime(2021, 4, 1, 19, 10)), isFalse);
+
+  // April 1 2020 - April 7 2030 Midnight to 11:59:59pm on the seventh - Yearly
+  startTime = new DateTime(2020, 4, 1);
+  endTime = new DateTime(2020, 4, 7, 23, 59, 59);
+  startDate = new DateTime(2020, 4, 1);
+  endDate = new DateTime(2030, 4, 7, 23, 59, 59);
+  tr = new TimeRange(startTime, endTime, startDate, endDate, Frequency.Yearly);
+  expect(tr.includes(startTime), isTrue);
+  expect(tr.includes(endTime), isTrue);
+  expect(tr.includes(new DateTime(2020, 3, 31, 9, 5)), isFalse);
+  expect(tr.includes(new DateTime(2020, 4, 1, 8, 5)), isTrue);
+  expect(tr.includes(new DateTime(2020, 4, 2, 12, 5)), isTrue);
+  expect(tr.includes(new DateTime(2020, 4, 4, 19, 10)), isTrue);
+  expect(tr.includes(new DateTime(2020, 4, 7, 23, 5)), isTrue);
+  expect(tr.includes(new DateTime(2020, 4, 8, 21, 25)), isFalse);
+  expect(tr.includes(new DateTime(2020, 4, 12, 22)), isFalse);
+  expect(tr.includes(new DateTime(2020, 4, 18, 9, 5)), isFalse);
+  expect(tr.includes(new DateTime(2020, 5, 1, 8, 5)), isFalse);
+  expect(tr.includes(new DateTime(2020, 5, 1, 12, 5)), isFalse);
+  expect(tr.includes(new DateTime(2021, 3, 31, 9, 5)), isFalse);
+  expect(tr.includes(new DateTime(2022, 4, 1, 8, 5)), isTrue);
+  expect(tr.includes(new DateTime(2023, 4, 4, 19, 10)), isTrue);
+  expect(tr.includes(new DateTime(2025, 4, 2, 12, 5)), isTrue);
+  expect(tr.includes(new DateTime(2030, 4, 7, 23, 5)), isTrue);
+  expect(tr.includes(new DateTime(2030, 4, 8, 21, 25)), isFalse);
+  expect(tr.includes(new DateTime(2020, 4, 12, 22)), isFalse);
+  expect(tr.includes(new DateTime(2020, 4, 18, 9, 5)), isFalse);
 }

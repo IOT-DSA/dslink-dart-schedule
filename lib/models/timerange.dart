@@ -43,6 +43,10 @@ class TimeRange {
   TimeRange(this.sTime, this.eTime, this.sDate, this.eDate,
       [this.frequency = Frequency.Daily]) {
 
+    if (!sameDayOfYear(sTime, sDate)) {
+      throw new StateError('Start Time and Start Date do not match');
+    }
+
     if (_end.isAfter(eDate)) {
       throw new RangeError('End Date must be after the end of the period for that day.');
     }
@@ -136,7 +140,7 @@ class TimeRange {
 
   bool includes(DateTime moment) {
     // Before the start or after the end, it's not included.
-    if (moment.isBefore(sTime) || moment.isAfter(_end)) return false;
+    if (moment.isBefore(sTime) || moment.isAfter(eDate)) return false;
 
     // In between the start end end of the first day (if applicable)
     if ((moment.isAtSameMomentAs(sTime) || moment.isAfter(sTime))
@@ -144,31 +148,37 @@ class TimeRange {
       return true;
     }
 
+    DateTime start;
+    DateTime end;
+
     switch (frequency) {
       case Frequency.Hourly:
-        return _hourlyInclude(moment);
+        start = new DateTime(moment.year, moment.month, moment.day,
+            moment.hour, sTime.minute, sTime.second, sTime.millisecond);
+        break;
       case Frequency.Daily:
-        return _dailyInclude(moment);
+        start = new DateTime(moment.year, moment.month, moment.day,
+            sTime.hour, sTime.minute, sTime.second, sTime.millisecond);
+        break;
+      case Frequency.Weekly:
+        var offSet = moment.weekday - sDate.weekday;
+        start = new DateTime(moment.year, moment.month, moment.day - offSet,
+            sTime.hour, sTime.minute, sTime.second, sTime.millisecond);
+        break;
+      case Frequency.Monthly:
+        start = new DateTime(moment.year, moment.month, sTime.day,
+            sTime.hour, sTime.minute, sTime.second, sTime.millisecond);
+        break;
+      case Frequency.Yearly:
+        start = new DateTime(moment.year, sTime.month, sTime.day,
+            sTime.hour, sTime.minute, sTime.second, sTime.millisecond);
+        break;
       default: return false;
     }
-  }
+    end = start.add(period);
 
-  bool _hourlyInclude(DateTime moment) {
-    var hourStart = new DateTime(moment.year, moment.month, moment.day,
-        moment.hour, sTime.minute, sTime.second, sTime.millisecond);
-    var hourEnd = hourStart.add(period);
-
-    return (moment.isAfter(hourStart) || moment.isAtSameMomentAs(hourStart))
-        && (moment.isBefore(hourEnd) || moment.isAtSameMomentAs(hourEnd));
-  }
-
-  bool _dailyInclude(DateTime moment) {
-    var dayStart = new DateTime(moment.year, moment.month, moment.day,
-        sTime.hour, sTime.minute, sTime.second, sTime.millisecond);
-    var dayEnd = dayStart.add(period);
-
-    return (moment.isAfter(dayStart) || moment.isAtSameMomentAs(dayStart))
-        && (moment.isBefore(dayEnd) || moment.isAtSameMomentAs(dayEnd));
+    return (moment.isAfter(start) || moment.isAtSameMomentAs(start)) &&
+           (moment.isBefore(end) || moment.isAtSameMomentAs(end));
   }
 }
 
