@@ -138,6 +138,10 @@ class TimeRange {
     return false;
   }
 
+  /// This method returns `true` if [moment] takes place during one of this
+  /// TimeRange's windows. If the specified [moment] is within the TimeRange's
+  /// Start and End dates but is not within the active window, this method will
+  /// return `false`.
   bool includes(DateTime moment) {
     // Before the start or after the end, it's not included.
     if (moment.isBefore(sTime) || moment.isAfter(eDate)) return false;
@@ -183,6 +187,10 @@ class TimeRange {
     return inRange(moment, start, end);
   }
 
+  /// Returns the [DateTime] of the next instance of this event starting on or
+  /// after [moment]. This method will only return the starting time of the next
+  /// event, but it will not return any events already in progress. If there are
+  /// no instances of the event after [moment], this method will return null.
   DateTime nextAfter(DateTime moment) {
     // It's before the first event so send first event
     if (moment.isBefore(sTime) || moment.isAtSameMomentAs(sTime)) return sTime;
@@ -191,95 +199,65 @@ class TimeRange {
       return null;
     }
 
-    switch (frequency) {
-      case Frequency.Hourly:
-        return _nextHourly(moment);
-      case Frequency.Daily:
-        return _nextDaily(moment);
-      case Frequency.Weekly:
-        return _nextWeekly(moment);
-      case Frequency.Monthly:
-        return _nextMonthly(moment);
-      case Frequency.Yearly:
-        return _nextYearly(moment);
-      default: return null;
-    }
-  }
+    DateTime next;
 
-  DateTime _nextHourly(DateTime moment) {
-    var next = new DateTime(moment.year, moment.month, moment.day,
-        moment.hour, sTime.minute, sTime.second, sTime.millisecond);
+    switch (frequency) {
+      case Frequency.Single:
+        return null; // Handled in the first check
+      case Frequency.Hourly:
+        next = new DateTime(moment.year, moment.month, moment.day,
+            moment.hour, sTime.minute, sTime.second, sTime.millisecond);
+        break;
+      case Frequency.Daily:
+        next = new DateTime(moment.year, moment.month, moment.day,
+            sTime.hour, sTime.minute, sTime.second, sTime.millisecond);
+        break;
+      case Frequency.Weekly:
+        var offSet = moment.weekday - sDate.weekday;
+        next = new DateTime(moment.year, moment.month, moment.day - offSet,
+            sTime.hour, sTime.minute, sTime.second, sTime.millisecond);
+        break;
+      case Frequency.Monthly:
+        next = new DateTime(moment.year, moment.month, sTime.day,
+            sTime.hour, sTime.minute, sTime.second, sTime.millisecond);
+        break;
+      case Frequency.Yearly:
+        next = new DateTime(moment.year, sTime.month, sTime.day,
+            sTime.hour, sTime.minute, sTime.second, sTime.millisecond);
+        break;
+    }
 
     // Double check that the current matching hour would still be in range
     if (!inRange(next, sTime, eDate)) return null;
+    // Check if moment prior to the start the next period of the same timeframe
     if (moment.isBefore(next) || moment.isAtSameMomentAs(next)) return next;
 
-    // Not in matching hour, try incrementing one
-    next = new DateTime(moment.year, moment.month, moment.day,
-        next.hour + 1, sTime.minute, sTime.second, sTime.millisecond);
+    // It's not at the same frequency so check next frequency:
 
-    if (includes(next)) return next;
-    return null;
-  }
-
-  DateTime _nextDaily(DateTime moment) {
-    var next = new DateTime(moment.year, moment.month, moment.day,
-        sTime.hour, sTime.minute, sTime.second, sTime.millisecond);
-
-    // Double check that the current matching day would still be in range
-    if (!inRange(next, sTime, eDate)) return null;
-    if (moment.isBefore(next) || moment.isAtSameMomentAs(next)) return next;
-
-    // Not in matching day, try incrementing one
-    next = new DateTime(next.year, next.month, next.day + 1,
-        sTime.hour, sTime.minute, sTime.second, sTime.millisecond);
-
-    if (includes(next)) return next;
-    return null;
-  }
-
-  DateTime _nextWeekly(DateTime moment) {
-    var offSet = moment.weekday - sDate.weekday;
-    var next = new DateTime(moment.year, moment.month, moment.day - offSet,
-        sTime.hour, sTime.minute, sTime.second, sTime.millisecond);
-
-    if (!inRange(next, sTime, eDate)) return null;
-    if (moment.isBefore(next) || moment.isAtSameMomentAs(next)) return next;
-
-    next = new DateTime(next.year, next.month, next.day + 7,
-        sTime.hour, sTime.minute, sTime.second, sTime.millisecond);
-
-    if (includes(next)) return next;
-    return null;
-  }
-
-  DateTime _nextMonthly(DateTime moment) {
-    var next = new DateTime(moment.year, moment.month, sTime.day,
-        sTime.hour, sTime.minute, sTime.second, sTime.millisecond);
-
-    // Double check that the current matching day would still be in range
-    if (!inRange(next, sTime, eDate)) return null;
-    if (moment.isBefore(next) || moment.isAtSameMomentAs(next)) return next;
-
-    // Not in matching day, try incrementing one
-    next = new DateTime(next.year, next.month + 1, sTime.day,
-        sTime.hour, sTime.minute, sTime.second, sTime.millisecond);
-
-    if (includes(next)) return next;
-    return null;
-  }
-
-  DateTime _nextYearly(DateTime moment) {
-    var next = new DateTime(moment.year, sTime.month, sTime.day,
-        sTime.hour, sTime.minute, sTime.second, sTime.millisecond);
-
-    // Double check that the current matching day would still be in range
-    if (!inRange(next, sTime, eDate)) return null;
-    if (moment.isBefore(next) || moment.isAtSameMomentAs(next)) return next;
-
-    // Not in matching day, try incrementing one
-    next = new DateTime(next.year + 1, sTime.month, sTime.day,
-        sTime.hour, sTime.minute, sTime.second, sTime.millisecond);
+    switch (frequency) {
+      case Frequency.Single:
+        return null; // Handled in the first check
+      case Frequency.Hourly:
+        next = new DateTime(next.year, next.month, next.day,
+            next.hour + 1, sTime.minute, sTime.second, sTime.millisecond);
+        break;
+      case Frequency.Daily:
+        next = new DateTime(next.year, next.month, next.day + 1,
+            sTime.hour, sTime.minute, sTime.second, sTime.millisecond);
+        break;
+      case Frequency.Weekly:
+        next = new DateTime(next.year, next.month, next.day + 7,
+            sTime.hour, sTime.minute, sTime.second, sTime.millisecond);
+        break;
+      case Frequency.Monthly:
+        next = new DateTime(next.year, next.month + 1, sTime.day,
+            sTime.hour, sTime.minute, sTime.second, sTime.millisecond);
+        break;
+      case Frequency.Yearly:
+        next = new DateTime(next.year + 1, sTime.month, sTime.day,
+            sTime.hour, sTime.minute, sTime.second, sTime.millisecond);
+        break;
+    }
 
     if (includes(next)) return next;
     return null;
