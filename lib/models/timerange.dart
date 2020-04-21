@@ -39,6 +39,8 @@ class TimeRange {
   static const String _eDate = 'eDate';
   static const String _freq = 'freq';
 
+  DateTime _nextTs;
+
   /// Creates a new TimeRange that spans the same time (from sTime to eTime)
   /// by default on a daily basis between sDate and eDate (inclusive). Otherwise
   /// frequency may be one of the Frequency enumerated values.
@@ -205,10 +207,17 @@ class TimeRange {
   }
 
   /// Returns the [DateTime] of the next instance of this event starting on or
-  /// after [moment]. This method will only return the starting time of the next
-  /// event, but it will not return any events already in progress. If there are
-  /// no instances of the event after [moment], this method will return null.
-  DateTime nextAfter(DateTime moment) {
+  /// after [moment]. If moment is null, the current time will be used. This
+  /// method will only return the starting time of the next event, but it will
+  /// not return any events already in progress. If there are no instances of
+  /// the event after [moment], this method will return null.
+  DateTime nextTs([DateTime moment]) {
+    // If moment is null assume we're looking for events after "now"
+    var isNow = (moment == null);
+    if (isNow) moment = new DateTime.now();
+
+    if (_nextTs != null && _nextTs.isAfter(moment)) return _nextTs;
+
     // It's before the first event so send first event
     if (moment.isBefore(sTime) || moment.isAtSameMomentAs(sTime)) return sTime;
 
@@ -247,7 +256,10 @@ class TimeRange {
     // Double check that the current matching hour would still be in range
     if (!inRange(next, sTime, eDate)) return null;
     // Check if moment prior to the start the next period of the same timeframe
-    if (moment.isBefore(next) || moment.isAtSameMomentAs(next)) return next;
+    if (moment.isBefore(next) || moment.isAtSameMomentAs(next)) {
+      if (isNow) _nextTs = next;
+      return next;
+    }
 
     // It's not at the same frequency so check next frequency:
 
@@ -276,7 +288,10 @@ class TimeRange {
         break;
     }
 
-    if (includes(next)) return next;
+    if (includes(next)) {
+      if (isNow) _nextTs = next;
+      return next;
+    }
     return null;
   }
 
@@ -294,6 +309,8 @@ bool sameDayOfYear(DateTime d1, DateTime d2) {
   return d1.day == d2.day && d1.month == d2.month && d1.year == d2.year;
 }
 
+/// Returns `true` if [start] <= moment <= [end]. Returns false if moment is
+/// before start or after end.
 bool inRange(DateTime moment, DateTime start, DateTime end) {
   return (moment.isAfter(start) || moment.isAtSameMomentAs(start)) &&
       (moment.isBefore(end) || moment.isAtSameMomentAs(end));
