@@ -30,8 +30,14 @@ class TimeRange {
   DateTime get _end => new DateTime(eDate.year, eDate.month, eDate.day,
           eTime.hour, eTime.minute, eTime.second, eTime.millisecond);
 
-  final RangeError _freq =
+  final RangeError _freqErr =
       new RangeError('Start and End Times exceed the specified Frequency');
+
+  static const String _sTime = 'sTime';
+  static const String _eTime = 'eTime';
+  static const String _sDate = 'sDate';
+  static const String _eDate = 'eDate';
+  static const String _freq = 'freq';
 
   /// Creates a new TimeRange that spans the same time (from sTime to eTime)
   /// by default on a daily basis between sDate and eDate (inclusive). Otherwise
@@ -53,19 +59,30 @@ class TimeRange {
 
     switch (frequency) {
       case Frequency.Hourly:
-        if (period > new Duration(hours: 1)) throw _freq;
+        if (period > new Duration(hours: 1)) throw _freqErr;
         break;
       case Frequency.Daily:
-        if (period > new Duration(days: 1)) throw _freq;
+        if (period > new Duration(days: 1)) throw _freqErr;
         break;
       case Frequency.Monthly:
-        if (period > new Duration(days: 30)) throw _freq;
+        if (period > new Duration(days: 30)) throw _freqErr;
         break;
       case Frequency.Yearly:
-        if (period > new Duration(days: 365)) throw _freq;
+        if (period > new Duration(days: 365)) throw _freqErr;
         break;
       default: break;
     }
+  }
+
+  /// Create a new [TimeRange] object from an existing json map.
+  factory TimeRange.fromJson(Map<String, dynamic> map) {
+    var sTime = DateTime.parse(map[_sTime]);
+    var eTime = DateTime.parse(map[_eTime]);
+    var sDate = DateTime.parse(map[_sDate]);
+    var eDate = DateTime.parse(map[_eDate]);
+    var freq = Frequency.values[map[_freq]];
+
+    return new TimeRange(sTime, eTime, sDate, eDate, freq);
   }
 
   /// This constructor takes a single moment in time for the TimeRange.
@@ -262,6 +279,15 @@ class TimeRange {
     if (includes(next)) return next;
     return null;
   }
+
+/// Export TimeRange configuration to a json map.
+  Map<String, dynamic> toJson() => {
+    _sTime: sTime.toIso8601String(),
+    _eTime: eTime.toIso8601String(),
+    _sDate: sDate.toIso8601String(),
+    _eDate: eDate.toIso8601String(),
+    _freq: frequency.index
+  };
 }
 
 bool sameDayOfYear(DateTime d1, DateTime d2) {

@@ -18,6 +18,16 @@ void main() {
   test("TimeRange.Weekly.nextAfter", timeRange_weekly_nextAfter);
   test("TimeRange.Monthly.nextAfter", timeRange_monthly_nextAfter);
   test("TimeRange.Yearly.nextAfter", timeRange_yearly_nextAfter);
+
+  //ToJson
+  test("TimeRange.Moment.toJson", timeRange_moment_toJson);
+  test("TimeRange.Single.toJson", timeRange_single_toJson);
+  test("TimeRange.Range.toJson", timeRange_range_toJson);
+
+  // fromJson Constructor
+  test("TimeRange.Moment.fromJson", timeRange_moment_fromJson);
+  test("TimeRange.Single.fromJson", timeRange_single_fromJson);
+  test("TimeRange.Range.fromJson", timeRange_range_fromJson);
 }
 
 void timeRange_moment_constructor() {
@@ -665,3 +675,113 @@ void timeRange_yearly_nextAfter() {
   expect(tr.nextAfter(new DateTime(2030, 4, 4, 10)), equals(null));
   expect(tr.nextAfter(new DateTime(2030, 6, 1)), equals(null));
 }
+
+void timeRange_moment_toJson() {
+  // April 12th @ 9am.
+  var single = new TimeRange.moment(new DateTime(2020, 4, 12, 9));
+  var res = {
+    'sTime': "2020-04-12T09:00:00.000",
+    'eTime': "2020-04-12T09:00:00.000",
+    'sDate': "2020-04-12T09:00:00.000",
+    'eDate': "2020-04-12T09:00:00.000",
+    'freq': 0
+  };
+  expect(single.toJson(), equals(res));
+}
+
+void timeRange_moment_fromJson() {
+  // April 12th @ 9am.
+  var input = {
+    'sTime': "2020-04-12T09:00:00.000",
+    'eTime': "2020-04-12T09:00:00.000",
+    'sDate': "2020-04-12T09:00:00.000",
+    'eDate': "2020-04-12T09:00:00.000",
+    'freq': 0
+  };
+  var tr = new TimeRange.fromJson(input);
+  expect(tr.sTime, equals(new DateTime(2020, 4, 12, 9)));
+  expect(tr.eTime, equals(new DateTime(2020, 4, 12, 9)));
+  expect(tr.sDate, equals(new DateTime(2020, 4, 12, 9)));
+  expect(tr.eDate, equals(new DateTime(2020, 4, 12, 9)));
+  expect(tr.frequency, equals(Frequency.Single));
+}
+
+void timeRange_single_toJson() {
+  // April 12th @ 9am.
+  var single = new TimeRange.single(new DateTime(2020, 4, 12, 9), new DateTime(2020, 4, 12, 11));
+  var res = {
+    'sTime': "2020-04-12T09:00:00.000",
+    'eTime': "2020-04-12T11:00:00.000",
+    'sDate': "2020-04-12T09:00:00.000",
+    'eDate': "2020-04-12T11:00:00.000",
+    'freq': 0
+  };
+  expect(single.toJson(), equals(res));
+}
+
+void timeRange_single_fromJson() {
+  // April 12th @ 9am.
+  var start = new DateTime(2020, 4, 12, 9);
+  var end =  new DateTime(2020, 4, 12, 11);
+  var res = {
+    'sTime': "2020-04-12T09:00:00.000",
+    'eTime': "2020-04-12T11:00:00.000",
+    'sDate': "2020-04-12T09:00:00.000",
+    'eDate': "2020-04-12T11:00:00.000",
+    'freq': 0
+  };
+  var tr = new TimeRange.fromJson(res);
+  expect(tr.sTime, equals(start));
+  expect(tr.eTime, equals(end));
+  expect(tr.sDate, equals(start));
+  expect(tr.eDate, equals(end));
+  expect(tr.frequency, equals(Frequency.Single));
+}
+
+void timeRange_range_toJson() {
+  // April 12th @ 9am.
+  var st = new DateTime(2020, 4, 12, 9);
+  // April 12th @ 11am.
+  var et = new DateTime(2020, 4, 12, 11);
+  // April 12th.
+  var sd = new DateTime(2020, 4, 12);
+  // April 18 @ 11am
+  var ed = new DateTime(2020, 4, 18, 11);
+
+  var tr = new TimeRange(st, et, sd, ed, Frequency.Daily);
+  var res = {
+    'sTime': "2020-04-12T09:00:00.000",
+    'eTime': "2020-04-12T11:00:00.000",
+    'sDate': "2020-04-12T00:00:00.000",
+    'eDate': "2020-04-18T11:00:00.000",
+    'freq': 2
+  };
+  expect(tr.toJson(), equals(res));
+}
+
+void timeRange_range_fromJson() {
+  // April 12th @ 9am.
+  var st = new DateTime(2020, 4, 12, 9);
+  // April 12th @ 11am.
+  var et = new DateTime(2020, 4, 12, 11);
+  // April 12th.
+  var sd = new DateTime(2020, 4, 12);
+  // April 18 @ 11am
+  var ed = new DateTime(2020, 4, 18, 11);
+
+  var res = {
+    'sTime': "2020-04-12T09:00:00.000",
+    'eTime': "2020-04-12T11:00:00.000",
+    'sDate': "2020-04-12T00:00:00.000",
+    'eDate': "2020-04-18T11:00:00.000",
+    'freq': 2
+  };
+  var tr = new TimeRange.fromJson(res);
+  expect(tr.sTime, equals(st));
+  expect(tr.eTime, equals(et));
+  expect(tr.sDate, equals(sd));
+  expect(tr.eDate, equals(ed));
+  expect(tr.frequency, equals(Frequency.Daily));
+}
+
+// TODO (mbutler): Create tests for to/From Json.
