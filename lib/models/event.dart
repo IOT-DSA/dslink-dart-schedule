@@ -28,6 +28,36 @@ class Event {
       {this.isSpecial: false, this.priority: 0, this.id: null}) {
     if (id == null) id = generateId();
   }
+
+  static const String _name = 'name';
+  static const String _id = 'id';
+  static const String _priority = 'priority';
+  static const String _special = 'special';
+  static const String _value = 'value';
+  static const String _time = 'timeRange';
+
+  /// Create a new Event from a json map that was previously exported with [toJson]
+  factory Event.fromJson(Map<String, dynamic> map) {
+    String name = map[_name];
+    String id = map[_id];
+    int priority = map[_priority];
+    bool special = map[_special];
+    Object value = map[_value];
+    TimeRange tr = new TimeRange.fromJson(map[_time]);
+
+    return new Event(name, tr, value,
+        isSpecial: special, priority: priority, id: id);
+  }
+
+  /// Export the Event to a json map.
+  Map<String, dynamic> toJson() => {
+    _name: name,
+    _id: id,
+    _priority: priority,
+    _special: isSpecial,
+    _value: value,
+    _time: timeRange.toJson()
+  };
 }
 
 /// Create a random ID String of Letters (upper and lowercase) and numbers.
