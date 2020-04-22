@@ -214,7 +214,11 @@ class TimeRange {
   DateTime nextTs([DateTime moment]) {
     // If moment is null assume we're looking for events after "now"
     var isNow = (moment == null);
-    if (isNow) moment = new DateTime.now();
+    // Remove 100ms from current time to help account for timer being off
+    // by a few ms.
+    if (isNow) {
+      moment = new DateTime.now().subtract(const Duration(milliseconds: 100));
+    }
 
     if (_nextTs != null && _nextTs.isAfter(moment)) return _nextTs;
 
@@ -257,7 +261,9 @@ class TimeRange {
     if (!inRange(next, sTime, eDate)) return null;
     // Check if moment prior to the start the next period of the same timeframe
     if (moment.isBefore(next) || moment.isAtSameMomentAs(next)) {
+      // if we're using current time, cache the next result
       if (isNow) _nextTs = next;
+
       return next;
     }
 

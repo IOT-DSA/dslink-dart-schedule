@@ -7,6 +7,7 @@ void main() {
   test('Constructor', event_constructor);
   test('toJson', event_toJson);
   test('fromJson', event_fromJson);
+  test('getPriority', test_getPriority);
 }
 
 void event_constructor() {
@@ -110,4 +111,34 @@ void event_fromJson() {
   expect(e.timeRange.sDate, equals(date));
   expect(e.timeRange.eDate, equals(date));
   expect(e.timeRange.frequency, equals(Frequency.Single));
+}
+
+void test_getPriority() {
+  var tr = new TimeRange.moment(new DateTime.now());
+  var a = new Event('A', tr, 'a');
+  var b = new Event('B', tr, 'b');
+
+  // Both same, expect A.
+  expect(getPriority(a, b).id, equals(a.id));
+  b.isSpecial = true;
+  // B special expect B.
+  expect(getPriority(a, b).id, equals(b.id));
+  a.priority = 1;
+  // A is higher priority but B is special. Expect B
+  expect(getPriority(a, b).id, equals(b.id));
+
+  a.isSpecial = true;
+  // A is higher priority, both special. Expect B.
+  expect(getPriority(a, b).id, equals(a.id));
+
+  a.priority = 4;
+  b.priority = 3;
+  // B is higher priority, expect B.
+  expect(getPriority(a, b).id, equals(b.id));
+
+  a = null;
+  expect(getPriority(a, b).id, equals(b.id));
+  expect(getPriority(b, a).id, equals(b.id));
+
+  expect(getPriority(null, null), equals(null));
 }

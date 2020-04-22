@@ -28,13 +28,26 @@ void schedule_add() {
   var end = start.add(new Duration(seconds: 10));
   var sched = new Schedule('Test', true);
 
-  var tr = new TimeRange.single(start, end);
+  var tr1 = new TimeRange.single(start, end);
+  var event1 = new Event('Test Event', tr1, 42);
 
-  var event = new Event('Test Event', tr, 42);
+  var tr2 = new TimeRange.moment(end);
+  var event2 = new Event('Test Two', tr2, 50);
 
-  sched.add(event);
+  start = now.add(new Duration(days: 1));
+  end = start.add(new Duration(minutes: 10));
+  var tr3 = new TimeRange.single(start, end);
+  var event3 = new Event('Test three', tr3, 100);
 
-  expect(sched.events.length, equals(1));
+  // Add backwards but check they are added in the correct order.
+  sched.add(event2);
+  sched.add(event3);
+  sched.add(event1);
+
+  expect(sched.events.length, equals(3));
+  expect(sched.events[0].id, equals(event1.id));
+  expect(sched.events[1].id, equals(event2.id));
+  expect(sched.events[2].id, equals(event3.id));
 }
 
 void test_getTsIndex() {

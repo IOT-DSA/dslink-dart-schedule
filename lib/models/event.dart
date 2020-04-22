@@ -12,7 +12,6 @@ class Event {
   /// Internal identifier for the event.
   String id;
   /// Priority level 0 - 9. 0 Is no priority specified. 1 is highest 9 is lowest.
-  /// An event will only start
   int priority;
   /// specialEvent indicates if this event should supersede all other events
   /// for that day. Not to be confused with a higher priority, which will allow
@@ -78,4 +77,25 @@ String generateId({int length: 50}) {
   }
 
   return buff.toString();
+}
+
+/// Determine which Event, a or b, has highest priority and return that.
+/// This handles cases of different priority levels and if an event isSpecial.
+/// If both Events have the same priority, Event A will be returned.
+Event getPriority(Event a, Event b) {
+  if (a == null) return b;
+  if (b == null) return a;
+  // 0 Is no priority specified. 1 is highest 9 is lowest.
+
+  // shortcut if one is special and not the other.
+  if (a.isSpecial && !b.isSpecial) return a;
+  if (!a.isSpecial && b.isSpecial) return b;
+
+  if (a.priority == b.priority) return a; // Just as special and same priority
+  if (a.priority < b.priority) {
+    if (a.priority == 0) return b;
+    return a;
+  }
+  if (b.priority == 0) return a;
+  return b;
 }

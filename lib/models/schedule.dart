@@ -29,6 +29,7 @@ class Schedule {
   Timer _timer;
   StreamController<Object> _controller;
   List<Event> _active;
+  bool _isEnd; // When timer ends revert to default rather than start new
 
   /// Create a new schedule with the specified name, and specified defaultValue.
   Schedule(this.name, this.defaultValue) {
@@ -51,59 +52,80 @@ class Schedule {
     // TODO Figure out how to handle getting the next event in the schedule.
   }
 
+  /// Add an event to this schedule.
   void add(Event e) {
     var nextTs = e.timeRange.nextTs();
 
-    events.add(e);
+    var ind = getTsIndex(events, nextTs);
+    events.insert(ind, e);
 
-    if (nextTs == null) return; // All events took place in the past.
-    // TODO: Decide if it should become active right now.
+    // Check if it should become active right now.
     if (e.timeRange.includes(new DateTime.now())) {
-      if (current == null) {
-        current = e;
-        if (_timer.isActive) _timer.cancel(); // TODO: Setup timer
-
-      }
+      _setCurrent(getPriority(current, e));
     }
+
+    // Not current, and all events took place in the past.
+    if (nextTs == null) return;
 
     if (_active.isEmpty) {
       _active.add(e);
     } else {
-      var ind = getTsIndex(_active, nextTs);
+      ind = getTsIndex(_active, nextTs);
       _active.insert(ind, e);
       next = _active.first;
     }
-
-    // TODO: It should add events in position rather than
   }
 
-  /// Makes the passed Event e, the current event.
+  /// Makes the passed Event e, the current event, it will also try to calculate
+  /// the next event and queue it up.
   void _setCurrent(Event e) {
-    var now = new DateTime.now();
+    // If it's already current, no need to change anything.
+    if (current == e) return;
 
+    var now = new DateTime.now();
     current = e;
-    _controller.add(e.value);
+    // If null then send the defaultValue
+    if (e == null) {
+      _controller.add(defaultValue);
+    } else {
+      _controller.add(e.value);
+    }
 
     if (_timer != null && _timer.isActive) _timer.cancel();
-    var end = now.add(e.timeRange.period);
+
     var nextTs = _getNextTs();
+    if (e == null && nextTs != null) {
+      // No current Event, create timer until next event.
+      _timer = new Timer(nextTs.difference(now), _timerEnd);
+      _isEnd = false;
+      return;
+    }
+
+    var end = now.add(e.timeRange.period);
     // no more events after this currently, so start timer until the end
     // of the current period.
     if (nextTs == null || nextTs.isAfter(end)) {
       _timer = new Timer(e.timeRange.period, _timerEnd);
+      _isEnd = true;
     } else {
       // Next timeStamp is before end of current.
       _timer = new Timer(nextTs.difference(now), _timerEnd);
+      _isEnd = false;
     }
   }
 
+  // Returns the DateTime stamp of the next event. This also has a side effect
+  // that will assign the next Event to the `next` value of the Schedule
   DateTime _getNextTs() {
-    List<DateTime> times = events
-        .map((Event e) => e.timeRange.nextTs())
-        .toList()
-        ..sort();
-    if (times.isEmpty) return null;
-    return times.first;
+    if (_active.isEmpty) return next = null;
+
+    _active.sort((Event a, Event b) {
+      var tsA = a.timeRange.nextTs();
+      return tsA.compareTo(b.timeRange.nextTs());
+    });
+
+    next = _active.first;
+    return next.timeRange.nextTs();
   }
 
   // Called when there are no other subscriptions to the stream. Add the current
@@ -113,8 +135,27 @@ class Schedule {
     _controller.add(currentValue);
   }
 
+  // Called when the _timer ends. It call setCurrent with null or the appropriate
+  // event.
   void _timerEnd() {
-    // TODO: Timer is over. Next value or default.
+    // Should be returning to default.
+    if (_isEnd) {
+      // Check and see if the event should be removed from active.
+      var next = current.timeRange.nextTs();
+      if (next == null) {
+        _active.removeWhere((Event e) => e.id == current.id);
+      }
+
+      _setCurrent(null);
+      return;
+    }
+
+    if (next == null) {
+      var nextTs = _getNextTs();
+      if (nextTs == null) return;
+    }
+
+    _setCurrent(next);
   }
 
   // Should schedules provide the values with a stream? Stream of values
@@ -131,7 +172,7 @@ int getTsIndex(List<Event> list, DateTime dt) {
     if (eTs == null || eTs.isBefore(dt)) continue;
 
     ind = i;
-    break; // don't keep iterating, we know where to insert
+    break;
   }
 
   return ind;
