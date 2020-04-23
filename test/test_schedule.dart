@@ -9,6 +9,8 @@ void main() {
   test('Schedule.Constructor', schedule_constructor);
   test('Schedule.Add', schedule_add);
   test('Schedule.GetTsIndex', test_getTsIndex);
+  test('Schedule.Moment.Values', schedule_moment_values);
+  test('Schedule.Single.Values', schedule_single_values);
 }
 
 Future<Null> schedule_constructor() async {
@@ -48,6 +50,61 @@ void schedule_add() {
   expect(sched.events[0].id, equals(event1.id));
   expect(sched.events[1].id, equals(event2.id));
   expect(sched.events[2].id, equals(event3.id));
+}
+
+Future<Null> schedule_moment_values() async {
+  var sched = new Schedule('Test Schedule', 100);
+  var now = new DateTime.now();
+  var tr = new TimeRange.moment(now.add(const Duration(seconds: 1)));
+  var evt = new Event('Test 1', tr, 1);
+  sched.add(evt);
+  tr = new TimeRange.moment(now.add(const Duration(seconds: 1, milliseconds: 500)));
+  evt = new Event('Test 2', tr, 2);
+  sched.add(evt);
+  tr = new TimeRange.moment(now.add(const Duration(seconds: 2)));
+  evt = new Event('Test 3', tr, 3);
+  sched.add(evt);
+
+  var expected = [100, 1, 100, 2, 100, 3];
+
+  var i = 0;
+  await for(var value in sched.values) {
+    expect(value, equals(expected[i++]));
+    if (i == expected.length) {
+      sched.delete();
+    }
+  }
+}
+
+Future<Null> schedule_single_values() async {
+
+  var sched = new Schedule('Test Schedule', 100); // Default for 1 sec.
+  var now = new DateTime.now();
+  var start = now.add(const Duration(seconds: 1));
+  var end = start.add(const Duration(seconds: 1));
+  var tr = new TimeRange.single(start, end); // 1 Second
+  var evt = new Event('Test 1', tr, 1);
+  sched.add(evt);
+  start = end;
+  end = start.add(const Duration(milliseconds: 500));
+  tr = new TimeRange.single(start, end); // 500 ms
+  evt = new Event('Test 2', tr, 2);
+  sched.add(evt);
+  start = end.add(const Duration(milliseconds: 500)); // Wait 500ms before starting
+  end = start.add(const Duration(seconds: 1)); // 1 second event.
+  tr = new TimeRange.single(start, end);
+  evt = new Event('Test 3', tr, 3);
+  sched.add(evt);
+
+  var expected = [100, 1, 2, 100, 3];
+
+  var i = 0;
+  await for(var value in sched.values) {
+    expect(value, equals(expected[i++]));
+    if (i == expected.length) {
+      sched.delete();
+    }
+  }
 }
 
 void test_getTsIndex() {

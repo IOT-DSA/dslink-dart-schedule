@@ -302,7 +302,7 @@ class TimeRange {
   /// running period. If the TimeRange is not currently have, this method
   /// returns `null`.
   Duration remaining([DateTime moment]) {
-    if (moment == null) moment = new DateTime.now();
+    moment ??= new DateTime.now();
 
     if (!includes(moment)) return null;
 
@@ -360,7 +360,10 @@ class TimeRange {
   };
 }
 
+/// Check if the D1 and D2 occur on the same day. Return `true` if so, and false
+/// if not. If d1, d2 or both are null, it also returns false (as they are not dates)
 bool sameDayOfYear(DateTime d1, DateTime d2) {
+  if (d1 == null || d2 == null) return false;
   return d1.day == d2.day && d1.month == d2.month && d1.year == d2.year;
 }
 

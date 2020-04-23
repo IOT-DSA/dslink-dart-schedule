@@ -1,6 +1,9 @@
 import 'dart:async';
 
 import 'event.dart';
+import 'timerange.dart';
+
+// TODO: Make sure that special events block the entire day!
 
 /// A schedule contains a default value (may be null) and a list of 0 or more
 /// events that occur during that schedule.
@@ -29,7 +32,8 @@ class Schedule {
   Timer _timer;
   StreamController<Object> _controller;
   List<Event> _active;
-  bool _isEnd; // When timer ends revert to default rather than start new
+  bool _isEnd = false; // When timer ends revert to default rather than start new
+  DateTime _curDay;
 
   /// Create a new schedule with the specified name, and specified defaultValue.
   Schedule(this.name, this.defaultValue) {
@@ -54,6 +58,7 @@ class Schedule {
 
   /// Add an event to this schedule.
   void add(Event e) {
+    bool isSet = false;
     var nextTs = e.timeRange.nextTs();
 
     var ind = getTsIndex(events, nextTs);
@@ -62,18 +67,23 @@ class Schedule {
     // Check if it should become active right now.
     if (e.timeRange.includes(new DateTime.now())) {
       _setCurrent(getPriority(current, e));
+      isSet = true; // Prevent redundant setting timer.
     }
 
     // Not current, and all events took place in the past.
     if (nextTs == null) return;
+    var now = new DateTime.now();
 
     if (_active.isEmpty) {
       _active.add(e);
+      next = e;
     } else {
       ind = getTsIndex(_active, nextTs);
       _active.insert(ind, e);
       next = _active.first;
     }
+
+    if (!isSet) _setTimer(now);
   }
 
   /// Makes the passed Event e, the current event, it will also try to calculate
@@ -89,6 +99,7 @@ class Schedule {
       _controller.add(defaultValue);
     } else {
       _controller.add(e.value);
+      _checkActive(e);
     }
 
     if (_timer != null && _timer.isActive) _timer.cancel();
@@ -128,6 +139,50 @@ class Schedule {
     return next.timeRange.nextTs();
   }
 
+  /// Sets up the Timer for the next call including properly setting the isEnd
+  /// flag. This handles cancelling any existing timer and resetting the timer
+  /// along with the appropriate flags
+  void _setTimer([DateTime now]) {
+    now ??= new DateTime.now();
+    if (_timer != null && _timer.isActive) _timer.cancel();
+
+    var nextTs = _getNextTs();
+    if (current == null) {
+      // no timer to set.
+      if (nextTs == null) return;
+
+      // Beginning of next.
+      _isEnd = false;
+      _timer = new Timer(nextTs.difference(now), _timerEnd);
+      return;
+    }
+
+    var endDur = current.timeRange.remaining(now);
+    if (nextTs == null) {
+      // End timer for existing
+      _isEnd = true;
+      _timer = new Timer(endDur, _timerEnd);
+      return;
+    }
+
+    var until = nextTs.difference(now);
+    if (endDur < until) {
+      _isEnd = true;
+      _timer = new Timer(endDur, _timerEnd);
+    } else {
+      _isEnd = false;
+      _timer = new Timer(until, _timerEnd);
+    }
+  }
+
+  /// Delete this schedule. Cancels timers, clears event queues, closes stream.
+  void delete() {
+    if (_timer.isActive) _timer.cancel();
+    if (!_controller.isClosed) _controller.close();
+    _active.length = 0;
+    events.length = 0;
+  }
+
   // Called when there are no other subscriptions to the stream. Add the current
   // value when a listen occurs. Won't always provide the value but better than
   // none at all
@@ -141,8 +196,8 @@ class Schedule {
     // Should be returning to default.
     if (_isEnd) {
       // Check and see if the event should be removed from active.
-      var next = current.timeRange.nextTs();
-      if (next == null) {
+      var nextTs = current.timeRange.nextTs();
+      if (nextTs == null) {
         _active.removeWhere((Event e) => e.id == current.id);
       }
 
@@ -158,8 +213,17 @@ class Schedule {
     _setCurrent(next);
   }
 
-  // Should schedules provide the values with a stream? Stream of values
-  // Broadcast stream, since that won't block when not listened.
+  /// Remove the specified [Event] from the currently active Events, if
+  /// appropriate, reinsert it into the correct place.
+  void _checkActive(Event e) {
+    var nextTs = e.timeRange.nextTs();
+    _active.remove(e);
+    // Should not have anymore instances, just remove it.
+    if (e.timeRange.frequency == Frequency.Single || nextTs == null) return;
+
+    var ind = getTsIndex(_active, nextTs);
+    _active.insert(ind, e);
+  }
 }
 
 /// Get the index into which an event at the specified DateTime dt should be

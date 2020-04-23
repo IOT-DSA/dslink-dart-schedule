@@ -81,8 +81,13 @@ String generateId({int length: 50}) {
 
 /// Determine which Event, a or b, has highest priority and return that.
 /// This handles cases of different priority levels and if an event isSpecial.
-/// If both Events have the same priority, Event A will be returned.
+/// If both Events have the same priority, Event A will be returned. Throws an
+/// [ArgumentError] if both a and b are null.
 Event getPriority(Event a, Event b) {
+  if (a == null && b == null) {
+    throw new ArgumentError('Both Events cannot be null');
+  }
+
   if (a == null) return b;
   if (b == null) return a;
   // 0 Is no priority specified. 1 is highest 9 is lowest.
