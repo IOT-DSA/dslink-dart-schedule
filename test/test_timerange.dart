@@ -28,6 +28,8 @@ void main() {
   test("TimeRange.Moment.fromJson", timeRange_moment_fromJson);
   test("TimeRange.Single.fromJson", timeRange_single_fromJson);
   test("TimeRange.Range.fromJson", timeRange_range_fromJson);
+
+  test("TimeRange.Remaining", timeRange_remaining);
 }
 
 void timeRange_moment_constructor() {
@@ -784,4 +786,21 @@ void timeRange_range_fromJson() {
   expect(tr.frequency, equals(Frequency.Daily));
 }
 
-// TODO (mbutler): Create tests for to/From Json.
+void timeRange_remaining() {
+  var start = new DateTime(2020, 4, 12, 10);
+  var end = new DateTime(2020, 4, 12, 12);
+  var test = new DateTime(2020, 4, 12, 11);
+
+  var tr = new TimeRange.single(start, end);
+  expect(tr.remaining(test).inMinutes, closeTo(60, 2));
+  expect(tr.remaining(end), isNull);
+  expect(tr.remaining(start.subtract(new Duration(seconds: 1))), isNull);
+
+  var sTime = new DateTime(2020, 4, 12, 10);
+  var eTime = new DateTime(2020, 4, 12, 12);
+  var sDate = new DateTime(2020, 4, 12);
+  var eDate = new DateTime(2020, 4, 18, 12);
+  tr = new TimeRange(sTime, eTime, sDate, eDate);
+  test = new DateTime(2020, 4, 15, 11);
+  expect(tr.remaining(test).inMinutes, closeTo(60, 2));
+}

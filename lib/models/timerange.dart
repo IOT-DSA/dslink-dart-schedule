@@ -166,10 +166,7 @@ class TimeRange {
     if (moment.isBefore(sTime) || moment.isAfter(eDate)) return false;
 
     // In between the start end end of the first day (if applicable)
-    if ((moment.isAtSameMomentAs(sTime) || moment.isAfter(sTime))
-        && (moment.isAtSameMomentAs(eTime) || moment.isBefore(eTime))) {
-      return true;
-    }
+    if (inRange(moment, sTime, eTime)) return true;
 
     DateTime start;
     DateTime end;
@@ -298,6 +295,58 @@ class TimeRange {
       if (isNow) _nextTs = next;
       return next;
     }
+    return null;
+  }
+
+  /// Returns a [Duration] of the time remaining in this TimeRange's currently
+  /// running period. If the TimeRange is not currently have, this method
+  /// returns `null`.
+  Duration remaining([DateTime moment]) {
+    if (moment == null) moment = new DateTime.now();
+
+    if (!includes(moment)) return null;
+
+    // In between the start end end of the first day (if applicable)
+    if (moment.isAfter(sTime) && moment.isBefore(eTime)) {
+      return eTime.difference(moment);
+    }
+
+    DateTime start;
+    DateTime end;
+
+    switch (frequency) {
+      case Frequency.Single:
+        return null;
+      case Frequency.Hourly:
+        start = new DateTime(moment.year, moment.month, moment.day,
+            moment.hour, sTime.minute, sTime.second, sTime.millisecond);
+        break;
+      case Frequency.Daily:
+        start = new DateTime(moment.year, moment.month, moment.day,
+            sTime.hour, sTime.minute, sTime.second, sTime.millisecond);
+        break;
+      case Frequency.Weekly:
+        var offSet = moment.weekday - sDate.weekday;
+        // Dart lets us use a negative day and will properly roll-back to the
+        // previous month without manually handling the changes. So it's okay if
+        // day - offSet is a negative number.
+        start = new DateTime(moment.year, moment.month, moment.day - offSet,
+            sTime.hour, sTime.minute, sTime.second, sTime.millisecond);
+        break;
+      case Frequency.Monthly:
+        start = new DateTime(moment.year, moment.month, sTime.day,
+            sTime.hour, sTime.minute, sTime.second, sTime.millisecond);
+        break;
+      case Frequency.Yearly:
+        start = new DateTime(moment.year, sTime.month, sTime.day,
+            sTime.hour, sTime.minute, sTime.second, sTime.millisecond);
+        break;
+      default: return null;
+    }
+    end = start.add(period);
+
+    if (inRange(moment, start, end)) return end.difference(moment);
+
     return null;
   }
 
