@@ -34,6 +34,7 @@ class Schedule {
   List<Event> _active;
   bool _isEnd = false; // When timer ends revert to default rather than start new
   DateTime _curDay;
+  bool _isSpecial = false;
 
   /// Create a new schedule with the specified name, and specified defaultValue.
   Schedule(this.name, this.defaultValue) {
@@ -65,14 +66,16 @@ class Schedule {
     events.insert(ind, e);
 
     // Check if it should become active right now.
+    var now = new DateTime.now();
     if (e.timeRange.includes(new DateTime.now())) {
+      if (e.isSpecial) _isSpecial = true;
+      _curDay = now;
       _setCurrent(getPriority(current, e));
       isSet = true; // Prevent redundant setting timer.
     }
 
     // Not current, and all events took place in the past.
     if (nextTs == null) return;
-    var now = new DateTime.now();
 
     if (_active.isEmpty) {
       _active.add(e);
@@ -104,7 +107,7 @@ class Schedule {
 
     if (_timer != null && _timer.isActive) _timer.cancel();
 
-    var nextTs = _getNextTs();
+    var nextTs = getNextTs();
     if (e == null && nextTs != null) {
       // No current Event, create timer until next event.
       _timer = new Timer(nextTs.difference(now), _timerEnd);
@@ -127,16 +130,69 @@ class Schedule {
 
   // Returns the DateTime stamp of the next event. This also has a side effect
   // that will assign the next Event to the `next` value of the Schedule
-  DateTime _getNextTs() {
+  DateTime getNextTs([DateTime moment]) {
     if (_active.isEmpty) return next = null;
+    moment ??= new DateTime.now();
 
     _active.sort((Event a, Event b) {
-      var tsA = a.timeRange.nextTs();
-      return tsA.compareTo(b.timeRange.nextTs());
+      var tsA = a.timeRange.nextTs(moment);
+      var tsB = b.timeRange.nextTs(moment);
+      if (tsA == null && tsB == null) return 0;
+      if (tsA == null) return 1;
+      if (tsB == null) return -1;
+      return tsA.compareTo(b.timeRange.nextTs(moment));
     });
 
-    next = _active.first;
-    return next.timeRange.nextTs();
+    var n = _active.first;
+    var nextTs = n.timeRange.nextTs(moment);
+    if (nextTs == null) return null;
+
+    var isSpecial = getSpecialOn(moment) != -1;
+
+    // Not a special day today. Just get the next event.
+    if (!isSpecial) {
+      // Make sure next event is today, or is special itself.
+      if (sameDayOfYear(moment, nextTs) || n.isSpecial) {
+        next = n;
+        return nextTs;
+      }
+
+      var ind = getSpecialOn(nextTs);
+      // No special events on that day.
+      if (ind == -1) {
+        next = n;
+        return nextTs;
+      } else {
+        // There's a special event on that day, so return that which may not be
+        // the "first" event.
+        next = events[ind];
+        return next.timeRange.nextTs();
+      }
+    }
+
+    // Today is a special day, Next event must be special or tomorrow.
+    if (n.isSpecial) {
+      next = n;
+      return nextTs;
+    }
+
+    var specials = _active.where((Event e) => e.isSpecial);
+
+    for (var sp in specials) {
+      var ts = sp.timeRange.nextTs();
+      if (ts == null) continue;
+      // If it's not the same day, don't bother checking the next ones, they
+      // shouldn't be either since it's sorted by NextTS
+      if (!sameDayOfYear(_curDay, ts)) break;
+
+      next = sp;
+      return ts;
+    }
+
+    // No specials left for today. So start figuring out the next timestamp
+    // at midnight.
+    var nextDay = new DateTime(moment.year, moment.month, moment.day + 1);
+    return getNextTs(nextDay);
   }
 
   /// Sets up the Timer for the next call including properly setting the isEnd
@@ -146,7 +202,7 @@ class Schedule {
     now ??= new DateTime.now();
     if (_timer != null && _timer.isActive) _timer.cancel();
 
-    var nextTs = _getNextTs();
+    var nextTs = getNextTs();
     if (current == null) {
       // no timer to set.
       if (nextTs == null) return;
@@ -193,20 +249,17 @@ class Schedule {
   // Called when the _timer ends. It call setCurrent with null or the appropriate
   // event.
   void _timerEnd() {
-    // Should be returning to default.
-    if (_isEnd) {
-      // Check and see if the event should be removed from active.
-      var nextTs = current.timeRange.nextTs();
-      if (nextTs == null) {
-        _active.removeWhere((Event e) => e.id == current.id);
-      }
+    // Check and see if any events should be removed from active.
+    _active.removeWhere((Event e) => e.timeRange.nextTs() == null);
 
+    // Set back to default.
+    if (_isEnd) {
       _setCurrent(null);
       return;
     }
 
     if (next == null) {
-      var nextTs = _getNextTs();
+      var nextTs = getNextTs();
       if (nextTs == null) return;
     }
 
@@ -224,6 +277,18 @@ class Schedule {
     var ind = getTsIndex(_active, nextTs);
     _active.insert(ind, e);
   }
+
+  /// Check if there is a special event on the specified date. Returns the index
+  /// of the event if true, and returns -1 if not found.
+  int getSpecialOn(DateTime date) {
+    int i;
+    for (i = 0; i < events.length; i++) {
+      var evt = events[i];
+      if (evt.isSpecial && evt.timeRange.sameDay(date)) return i;
+    }
+    return -1;
+  }
+
 }
 
 /// Get the index into which an event at the specified DateTime dt should be

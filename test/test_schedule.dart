@@ -8,9 +8,11 @@ import 'package:dslink_schedule/models/timerange.dart';
 void main() {
   test('Schedule.Constructor', schedule_constructor);
   test('Schedule.Add', schedule_add);
-  test('Schedule.GetTsIndex', test_getTsIndex);
+  test('Schedule.GetNextTs', schedule_getNextTs);
+  test('Schedule.GetSpecialOn', schedule_getSpecialOn);
   test('Schedule.Moment.Values', schedule_moment_values);
   test('Schedule.Single.Values', schedule_single_values);
+  test('GetTsIndex', test_getTsIndex);
 }
 
 Future<Null> schedule_constructor() async {
@@ -52,6 +54,48 @@ void schedule_add() {
   expect(sched.events[2].id, equals(event3.id));
 }
 
+void schedule_getNextTs() {
+  var sched = new Schedule('Test Schedule', 100);
+  var now = new DateTime.now();
+  var start = now.subtract(new Duration(seconds: 10));
+  var end = now.add(new Duration(minutes: 10));
+  var event = new Event('Test 1',
+      new TimeRange.single(start, end), 20,
+      isSpecial: true);
+
+  sched.add(event);
+  // Every hour from x:15 - x:25
+  var sTime = new DateTime(now.year, now.month, now.day, 8, 15);
+  var eTime = new DateTime(now.year, now.month, now.day, 8, 25);
+  var sDate = sTime;
+  var eDate = eTime.add(new Duration(days: 4));
+  var tr = new TimeRange(sTime, eTime, sDate, eDate, Frequency.Hourly);
+  event = new Event('Test two', tr, 2);
+  sched.add(event);
+
+  var expected = new DateTime(now.year, now.month, now.day + 1, 0, 15);
+  expect(sched.getNextTs(), equals(expected));
+}
+
+void schedule_getSpecialOn() {
+  var now = new DateTime.now();
+  var sched = new Schedule('Test Schedule', 1);
+  var start = now.add(new Duration(seconds: 5));
+  var tr = new TimeRange.moment(start);
+  var evt = new Event('Event 1', tr, 10);
+  sched.add(evt);
+
+  start = now.add(new Duration(seconds: 10));
+  evt = new Event('Event 2', new TimeRange.moment(start), 20);
+  sched.add(evt);
+
+  start = now.add(new Duration(seconds: 15));
+  evt = new Event('Special', new TimeRange.moment(start), 30, isSpecial: true);
+  sched.add(evt);
+
+  expect(sched.getSpecialOn(now), equals(2));
+}
+
 Future<Null> schedule_moment_values() async {
   var sched = new Schedule('Test Schedule', 100);
   var now = new DateTime.now();
@@ -77,7 +121,6 @@ Future<Null> schedule_moment_values() async {
 }
 
 Future<Null> schedule_single_values() async {
-
   var sched = new Schedule('Test Schedule', 100); // Default for 1 sec.
   var now = new DateTime.now();
   var start = now.add(const Duration(seconds: 1));

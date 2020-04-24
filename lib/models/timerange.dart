@@ -101,10 +101,10 @@ class TimeRange {
   /// on the same day. For example if a TimeRange is Weekly starting on a
   /// Thursday and [TimeRange] is a month, any DateTime that is not on a
   /// Thursday will return false.
-  bool sameDay(DateTime day) {
+  bool sameDay(DateTime date) {
     // Reset day so it's midnight of that day. Helps prevent issues where
     // it's the same day, but "day" is later than the time of endDate.
-    day = new DateTime(day.year, day.month, day.day);
+    var day = new DateTime(date.year, date.month, date.day);
     var windowDur = period;
 
     // Check if it's the same as start day
