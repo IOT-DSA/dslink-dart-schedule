@@ -31,7 +31,10 @@ main(List<String> args) async {
     ScheduleNode.isType: (String path) => new ScheduleNode(path, link),
     DefaultValueNode.isType: (String path) => new DefaultValueNode(path, link),
     EventsNode.isType: (String path) => new EventsNode(path),
-    AddEventsNode.isType: (String path) => new AddEventsNode(path, link),
+    AddSingleEvent.isType: (String path) => new AddSingleEvent(path, link),
+    AddMomentEvent.isType: (String path) => new AddMomentEvent(path, link),
+    AddRecurringEvents.isType: (String path) => new AddRecurringEvents(path, link),
+    RemoveAction.isType: (String path) => new RemoveAction(path),
 
     AddICalRemoteScheduleNode.isType:
         (String path) => new AddICalRemoteScheduleNode(path, link),

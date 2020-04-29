@@ -1,20 +1,190 @@
 import 'package:dslink/dslink.dart';
 
-import 'package:dslink/utils.dart' show logger;
-import 'package:dslink/nodes.dart' show NodeNamer;
-
 import 'package:dslink_schedule/schedule.dart';
 import 'package:dslink_schedule/utils.dart' show parseInputValue;
 import 'package:dslink_schedule/models/timerange.dart';
 
-import 'schedule.dart';
+import 'common.dart';
 
-class AddEventsNode extends SimpleNode {
-  static const String isType = 'addEventsNode';
-  static const String pathName = 'add_events';
+class AddSingleEvent extends ScheduleChild {
+  static const String isType = 'addSingleEvent';
+  static const String pathName = 'add_single_event';
+
+  static const String _name = 'name';
+  static const String _value = 'value';
+  static const String _dateRange = 'dateRange';
+  static const String _isSpecial = 'isSpecial';
+  static const String _priority = 'priority';
 
   static Map<String, dynamic> def() => {
     r'$name': 'Add Event',
+    r'$is': isType,
+    r'$invokable': 'write',
+    r'$params': [
+      {
+        'name': _name,
+        'type': 'string',
+        'placeholder': 'Activate Light',
+        'description': 'Identifiable name for the event.'
+      },
+      {
+        'name': _value,
+        'type': 'dynamic',
+        'description': 'Value when event is triggered'
+      },
+      {
+        'name': _dateRange,
+        'type': 'string',
+        'editor': 'daterange',
+        'description': 'Start and end date range of the event.'
+      },
+      {
+        'name': _isSpecial,
+        'type': 'bool',
+        'default': 'false',
+        'description': 'Flag indicating if this is considered a special event'
+      },
+      {
+        'name': _priority,
+        'type': 'number',
+        'editor': 'int',
+        'min': 0,
+        'max': 9,
+        'default': 0,
+        'description': 'Event priority. 0 is none specified; 1 is highest; 9 is lowest.'
+      }
+    ]
+  };
+
+  final LinkProvider _link;
+  AddSingleEvent(String path, this._link) : super(path);
+
+  @override
+  void onInvoke(Map<String, dynamic> params) {
+    var name = params[_name] as String;
+    var sched = getSchedule();
+    if (sched.schedule.events.contains((Event e) => e.name == name)) {
+      throw new ArgumentError.value(name, _name, 'An event by that name already exists');
+    }
+
+    var val = parseInputValue(params[_value]);
+    var spec = params[_isSpecial];
+    var pri = params[_priority];
+    var dateStr = params[_dateRange] as String;
+    if (!dateStr.contains(r'/')) {
+      throw new ArgumentError.value(dateStr, _dateRange,
+          'Unexpected date range. Should be in the format <startDateTime>/<endDateTime>');
+    }
+
+    var date = dateStr.split(r'/');
+    var startDate = DateTime.parse(date[0]);
+    var endDate = DateTime.parse(date[1]);
+
+    var tr = new TimeRange.single(startDate, endDate);
+    var evnt = new Event(name, tr, val, isSpecial: spec, priority: pri);
+    sched.addEvent(evnt);
+
+    var en = provider.addNode('${parent.path}/${evnt.id}', EventsNode.def(evnt)) as EventsNode;
+    if (en != null) {
+      en.event = evnt;
+    }
+    _link.save();
+  }
+}
+
+class AddMomentEvent extends ScheduleChild {
+  static const String pathName = 'add_moment_event';
+  static const String isType = 'addMomentEvent';
+
+  static const String _date = 'dateTime';
+  static const String _value = 'value';
+  static const String _name = 'name';
+  static const String _priority = 'priority';
+  static const String _isSpecial = 'isSpecial';
+
+  static Map<String, dynamic> def() => {
+    r'$name': 'Add Moment Event',
+    r'$is': isType,
+    r'$invokable': 'write',
+    r'$params': [
+      {
+        'name': _name,
+        'type': 'string',
+        'placeholder': 'Activate Light',
+        'description': 'Identifiable name for the event.'
+      },
+      {
+        'name': _value,
+        'type': 'dynamic',
+        'description': 'Value when event is triggered'
+      },
+      {
+        'name': _date,
+        'type': 'string',
+        'editor': 'daterange',
+        'description': 'Start date and time of the event.'
+      },
+      {
+        'name': _isSpecial,
+        'type': 'bool',
+        'default': 'false',
+        'description': 'Flag indicating if this is considered a special event'
+      },
+      {
+        'name': _priority,
+        'type': 'number',
+        'editor': 'int',
+        'min': 0,
+        'max': 9,
+        'default': 0,
+        'description': 'Event priority. 0 is none specified; 1 is highest; 9 is lowest.'
+      }
+    ]
+  };
+
+  final LinkProvider _link;
+
+  AddMomentEvent(String path, this._link) : super(path);
+
+  @override
+  void onInvoke(Map<String, dynamic> params) {
+    var name = params[_name] as String;
+    var sched = getSchedule();
+    if (sched.schedule.events.contains((Event e) => e.name == name)) {
+      throw new ArgumentError.value(name, _name, 'An event by that name already exists');
+    }
+
+    var val = parseInputValue(params[_value]);
+    var spec = params[_isSpecial];
+    var pri = params[_priority];
+    var dates = params[_date] as String;
+    String dateStr;
+    if (dates.contains(r'/')) {
+      dateStr = dates.split(r'/')[0];
+    } else {
+      dateStr = dates;
+    }
+
+    var date = DateTime.parse(dateStr);
+
+    var tr = new TimeRange.moment(date);
+    var evnt = new Event(name, tr, val, isSpecial: spec, priority: pri);
+    sched.addEvent(evnt);
+
+    var en = provider.addNode('${parent.path}/${evnt.id}', EventsNode.def(evnt)) as EventsNode;
+    if (en != null) {
+      en.event = evnt;
+    }
+    _link.save();
+  }
+}
+
+class AddRecurringEvents extends ScheduleChild {
+  static const String isType = 'addRecurringEvents';
+  static const String pathName = 'add_recurring_events';
+
+  static Map<String, dynamic> def() => {
+    r'$name': 'Add Recurring Event',
     r'$is': isType,
     r'$params': [
       {
@@ -74,15 +244,13 @@ class AddEventsNode extends SimpleNode {
   static const String _value = 'value';
 
   final LinkProvider _link;
-  AddEventsNode(String path, this._link): super(path);
+  AddRecurringEvents(String path, this._link): super(path);
 
   @override
-  onInvoke(Map<String, dynamic> params) {
+  void onInvoke(Map<String, dynamic> params) {
     var name = params[_name] as String;
-    
-    var encName = NodeNamer.createName(name);
-    var nd = provider.getNode('${parent.path}/$encName');
-    if (nd != null) {
+    var sched = getSchedule();
+    if (sched.schedule.events.contains((Event e) => e.name == name)) {
       throw new ArgumentError.value(name, _name, 'An event by that name already exists');
     }
     
@@ -125,28 +293,18 @@ class AddEventsNode extends SimpleNode {
     var pri = params[_priority];
     
     var evnt = new Event(name, tr, val, isSpecial: spec, priority: pri);
+    sched.addEvent(evnt);
 
-    var sch = getSchedule();
-    sch.addEvent(evnt);
-
-    provider.addNode('${parent.path}/${evnt.id}', EventsNode.def(evnt));
+    var en = provider.addNode('${parent.path}/${evnt.id}', EventsNode.def(evnt)) as EventsNode;
+    if (en != null) {
+      en.event = evnt;
+    }
 
     _link.save();
   }
-
-  ScheduleNode getSchedule() {
-    var schedPath = parent.parent.path;
-    var sched = provider.getNode(schedPath) as ScheduleNode;
-    if (sched == null) {
-      logger.warning('Unable to remove event, could not find schedule');
-      return null;
-    }
-
-    return sched;
-  }
 }
 
-class EventsNode extends SimpleNode {
+class EventsNode extends ScheduleChild {
   static const String isType = 'eventsNode';
 
   static const String _id = 'id';
@@ -178,7 +336,7 @@ class EventsNode extends SimpleNode {
       _freq: {r'$name': 'Frequency', r'$type': 'enum[$freqStr]', r'?value': freqVal},
       _isSpecial: {r'$name': 'Special', r'$type': 'bool', r'?value': e.isSpecial},
       _priority: {r'$name': 'Priority', r'$type': 'number', r'?value': e.priority},
-      'remove': { r'$is': 'remove', r'$name': 'Remove', r'$invokable': 'write'}
+      RemoveAction.pathName: RemoveAction.def()
     };
 
     if (e.timeRange.period > new Duration(seconds: 1)) {
@@ -196,7 +354,6 @@ class EventsNode extends SimpleNode {
   Event event;
 
   EventsNode(String path) : super(path) {
-    // construct the nodes each time no need to serialize
     serializable = false;
   }
 
@@ -205,26 +362,6 @@ class EventsNode extends SimpleNode {
     var sched = getSchedule();
     if (sched == null) return;
 
-    String id;
-    if (event != null) {
-      id = event.id;
-    } else {
-      var idNode = children[_id] as SimpleNode;
-      id = idNode.value;
-    }
-
-    if (id != null) {
-      sched.removeEvent(id);
-    }
-  }
-
-  ScheduleNode getSchedule() {
-    var sched = parent as ScheduleNode;
-    if (sched == null) {
-      logger.warning('Unable to remove event, could not find schedule');
-      return null;
-    }
-
-    return sched;
+    sched.removeEvent(name);
   }
 }

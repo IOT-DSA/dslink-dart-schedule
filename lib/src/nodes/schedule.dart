@@ -8,6 +8,7 @@ import 'package:dslink_schedule/utils.dart';
 import 'package:dslink_schedule/schedule.dart';
 
 import 'events.dart';
+import 'common.dart';
 
 class AddSchedule extends SimpleNode {
   static const String pathName = 'addSchedule';
@@ -76,16 +77,18 @@ class ScheduleNode extends SimpleNode {
       _schedule: sched.toJson(),
       _current: {r'$name': 'Current Value', r'$type': 'dynamic'},
       _next: {r'$name': 'Next Value', r'$type': 'dynamic'},
-      _next_ts: {r"$name": "Next Value Timestamp", r"$type": "dynamic"},
+      _next_ts: {r"$name": "Next Value Timestamp", r"$type": 'string'},
       _stc: {
         r"$name": "Next Value Timer",
         r"$type": "number",
         "@unit": "seconds"
       },
-      _remove: {r"$name": "Remove", r"$invokable": "write", r"$is": _remove},
+      RemoveAction.pathName: RemoveAction.def(),
       _events: {
         r"$name": "Events",
-        AddEventsNode.pathName: AddEventsNode.def()
+        AddSingleEvent.pathName: AddSingleEvent.def(),
+        AddMomentEvent.pathName: AddMomentEvent.def(),
+        AddRecurringEvents.pathName: AddRecurringEvents.def()
       }
   };
 
@@ -198,12 +201,23 @@ class ScheduleNode extends SimpleNode {
 
     var now = new DateTime.now();
     var nextTs = nextEvent.timeRange.nextTs();
+
+    // Rare but possible we'll have a next event but no timestamp
+    if (nextTs == null) {
+      nextTs = schedule.getNextTs();
+      if (nextTs == null) {
+        t.cancel();
+        stcNode.updateValue(0);
+        return;
+      }
+    }
+
     var dur = nextTs.difference(now);
     stcNode.updateValue(dur.inSeconds);
   }
 }
 
-class DefaultValueNode extends SimpleNode {
+class DefaultValueNode extends ScheduleChild {
   static const String pathName = 'defaultValue';
   static const String isType = 'defaultValueNode';
 
@@ -223,19 +237,9 @@ class DefaultValueNode extends SimpleNode {
   // Called when `@set` is called on the default value.
   bool onSetValue(Object value) {
     var schedNode = getSchedule();
-    schedNode.setDefaultValue(value);
+    schedNode.setDefaultValue(parseInputValue(value));
     _link.save();
 
     return false; // False to accept value. ¯\_(ツ)_/¯
-  }
-
-  ScheduleNode getSchedule() {
-    var sched = parent as ScheduleNode;
-    if (sched == null) {
-      logger.warning('Unable to remove event, could not find schedule');
-      return null;
-    }
-
-    return sched;
   }
 }
