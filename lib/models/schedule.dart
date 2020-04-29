@@ -33,8 +33,6 @@ class Schedule {
   StreamController<Object> _controller;
   List<Event> _active;
   bool _isEnd = false; // When timer ends revert to default rather than start new
-  DateTime _curDay;
-  bool _isSpecial = false;
 
   /// Create a new schedule with the specified name, and specified defaultValue.
   Schedule(this.name, this.defaultValue) {
@@ -49,13 +47,20 @@ class Schedule {
     defaultValue = map[_value];
     var eList = map[_events] as List<Map>;
 
-    events = new List<Event>(eList.length);
+    events = new List<Event>();
+    _active = new List<Event>();
+    _controller = new StreamController.broadcast(onListen: _onListen);
     for (var e in eList) {
-      events.add(new Event.fromJson(e));
+      add(new Event.fromJson(e));
     }
-
-    // TODO Figure out how to handle getting the next event in the schedule.
   }
+
+  /// Export this schedule to a json encode-able map.
+  Map<String, dynamic> toJson() => {
+    _name: name,
+    _value: defaultValue,
+    _events: events.map((Event e) => e.toJson()).toList()
+  };
 
   /// Add an event to this schedule.
   void add(Event e) {
@@ -67,9 +72,7 @@ class Schedule {
 
     // Check if it should become active right now.
     var now = new DateTime.now();
-    if (e.timeRange.includes(new DateTime.now())) {
-      if (e.isSpecial) _isSpecial = true;
-      _curDay = now;
+    if (e.timeRange.includes(now)) {
       _setCurrent(getPriority(current, e));
       isSet = true; // Prevent redundant setting timer.
     }
@@ -87,6 +90,21 @@ class Schedule {
     }
 
     if (!isSet) _setTimer(now);
+  }
+
+  /// Remove the event matching the specified ID.
+  void remove(String id) {
+    var ind = 0;
+    for (; ind < events.length; ind++) {
+      if (events[ind].id == id) break;
+    }
+
+    if (ind == events.length) return;
+    var evnt = events.removeAt(ind);
+    _active.remove(evnt);
+
+    if (evnt == current) _setCurrent(null);
+    if (evnt == next) getNextTs();
   }
 
   /// Makes the passed Event e, the current event, it will also try to calculate
@@ -119,7 +137,8 @@ class Schedule {
     // no more events after this currently, so start timer until the end
     // of the current period.
     if (nextTs == null || nextTs.isAfter(end)) {
-      _timer = new Timer(e.timeRange.period, _timerEnd);
+      var remain = e.timeRange.remaining(now);
+      _timer = new Timer(remain ?? e.timeRange.period, _timerEnd);
       _isEnd = true;
     } else {
       // Next timeStamp is before end of current.
@@ -183,7 +202,7 @@ class Schedule {
       if (ts == null) continue;
       // If it's not the same day, don't bother checking the next ones, they
       // shouldn't be either since it's sorted by NextTS
-      if (!sameDayOfYear(_curDay, ts)) break;
+      if (!sameDayOfYear(moment, ts)) break;
 
       next = sp;
       return ts;
