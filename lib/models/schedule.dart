@@ -33,6 +33,8 @@ class Schedule {
   StreamController<Object> _controller;
   List<Event> _active;
   bool _isEnd = false; // When timer ends revert to default rather than start new
+  // Flag to see if the active list has changed. Used in getNextTs to track cache.
+  bool _hasChanged = false;
 
   /// Create a new schedule with the specified name, and specified defaultValue.
   Schedule(this.name, this.defaultValue) {
@@ -80,14 +82,15 @@ class Schedule {
     // Not current, and all events took place in the past.
     if (nextTs == null) return;
 
+    _hasChanged = true;
     if (_active.isEmpty) {
       _active.add(e);
-      next = e;
     } else {
       ind = getTsIndex(_active, nextTs);
       _active.insert(ind, e);
-      next = _active.first;
     }
+    // Handles setting up the next value
+    getNextTs(now);
 
     if (!isSet) _setTimer(now);
   }
@@ -103,6 +106,7 @@ class Schedule {
     var evnt = events.removeAt(ind);
     _active.remove(evnt);
 
+    _hasChanged = true;
     if (evnt == current) _setCurrent(null);
     if (evnt == next) getNextTs();
   }
@@ -126,19 +130,21 @@ class Schedule {
     if (_timer != null && _timer.isActive) _timer.cancel();
 
     var nextTs = getNextTs();
-    if (e == null && nextTs != null) {
+    if (e == null) {
+      if (nextTs == null) { next = null; return; }
+
       // No current Event, create timer until next event.
       _timer = new Timer(nextTs.difference(now), _timerEnd);
       _isEnd = false;
       return;
     }
 
-    var end = now.add(e.timeRange.period);
+    var dur = e.timeRange.remaining(now) ?? e.timeRange.period;
+    var end = now.add(dur);
     // no more events after this currently, so start timer until the end
     // of the current period.
     if (nextTs == null || nextTs.isAfter(end)) {
-      var remain = e.timeRange.remaining(now);
-      _timer = new Timer(remain ?? e.timeRange.period, _timerEnd);
+      _timer = new Timer(dur, _timerEnd);
       _isEnd = true;
     } else {
       // Next timeStamp is before end of current.
@@ -150,8 +156,11 @@ class Schedule {
   // Returns the DateTime stamp of the next event. This also has a side effect
   // that will assign the next Event to the `next` value of the Schedule
   DateTime getNextTs([DateTime moment]) {
-    if (_active.isEmpty) return next = null;
+    if (_active.isEmpty) return null;
     moment ??= new DateTime.now();
+    if (!_hasChanged) return next?.timeRange?.nextTs(moment);
+
+    next = null;
 
     _active.sort((Event a, Event b) {
       var tsA = a.timeRange.nextTs(moment);
@@ -270,6 +279,7 @@ class Schedule {
   void _timerEnd() {
     // Check and see if any events should be removed from active.
     _active.removeWhere((Event e) => e.timeRange.nextTs() == null);
+    _hasChanged = true;
 
     // Set back to default.
     if (_isEnd) {
@@ -314,6 +324,8 @@ class Schedule {
 /// inserted into the list.
 int getTsIndex(List<Event> list, DateTime dt) {
   var ind = list.length;
+  if (dt == null) return ind;
+
   var now = new DateTime.now();
   for (int i = 0; i < list.length; i++) {
     var eTs = list[i].timeRange.nextTs(now);

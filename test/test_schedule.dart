@@ -10,6 +10,7 @@ void main() {
   test('Schedule.Add', schedule_add);
   test('Schedule.GetNextTs', schedule_getNextTs);
   test('Schedule.GetSpecialOn', schedule_getSpecialOn);
+  test('Schedule.next', schedule_next);
   test('Schedule.Moment.Values', schedule_moment_values);
   test('Schedule.Single.Values', schedule_single_values);
   test('Schedule.ToJson', schedule_toJson);
@@ -76,6 +77,27 @@ void schedule_getNextTs() {
 
   var expected = new DateTime(now.year, now.month, now.day + 1, 0, 15);
   expect(sched.getNextTs(), equals(expected));
+}
+
+void schedule_next() {
+  var sched = new Schedule('Test schedule', 100);
+  var now = new DateTime.now();
+  var start = now.add(new Duration(seconds: 30));
+  var tr = new TimeRange.moment(start);
+  var event = new Event('Test Event', tr, 1);
+  sched.add(event);
+  expect(sched.next, equals(event));
+  
+  start = now.subtract(new Duration(seconds: 5));
+  tr = new TimeRange.moment(start);
+  event = new Event('Test Event', tr, 1, isSpecial: true);
+  sched.add(event);
+
+  start = now.add(new Duration(seconds: 10));
+  tr = new TimeRange.moment(start);
+  event = new Event('Test Two', tr, -1);
+  sched.add(event);
+  expect(sched.next, isNull);
 }
 
 void schedule_getSpecialOn() {
