@@ -158,7 +158,15 @@ class Schedule {
   DateTime getNextTs([DateTime moment]) {
     if (_active.isEmpty) return null;
     moment ??= new DateTime.now();
-    if (!_hasChanged) return next?.timeRange?.nextTs(moment);
+
+    var isSpecial = getSpecialOn(moment) != -1;
+
+    // Don't use cached values on special days
+    if (!_hasChanged && !isSpecial) {
+      var nNextTs = next?.timeRange?.nextTs(moment);
+      if (nNextTs != null && getSpecialOn(nNextTs) == -1)
+        return next?.timeRange?.nextTs(moment);
+    }
 
     next = null;
 
@@ -175,13 +183,12 @@ class Schedule {
     var nextTs = n.timeRange.nextTs(moment);
     if (nextTs == null) return null;
 
-    var isSpecial = getSpecialOn(moment) != -1;
-
     // Not a special day today. Just get the next event.
     if (!isSpecial) {
       // Make sure next event is today, or is special itself.
       if (sameDayOfYear(moment, nextTs) || n.isSpecial) {
         next = n;
+        _hasChanged = false;
         return nextTs;
       }
 
@@ -189,11 +196,13 @@ class Schedule {
       // No special events on that day.
       if (ind == -1) {
         next = n;
+        _hasChanged = false;
         return nextTs;
       } else {
         // There's a special event on that day, so return that which may not be
         // the "first" event.
         next = events[ind];
+        _hasChanged = false;
         return next.timeRange.nextTs();
       }
     }
@@ -201,6 +210,7 @@ class Schedule {
     // Today is a special day, Next event must be special or tomorrow.
     if (n.isSpecial) {
       next = n;
+      _hasChanged = false;
       return nextTs;
     }
 
@@ -214,6 +224,7 @@ class Schedule {
       if (!sameDayOfYear(moment, ts)) break;
 
       next = sp;
+      _hasChanged = false;
       return ts;
     }
 
