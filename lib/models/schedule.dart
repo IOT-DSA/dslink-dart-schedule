@@ -272,7 +272,7 @@ class Schedule {
 
   /// Delete this schedule. Cancels timers, clears event queues, closes stream.
   void delete() {
-    if (_timer.isActive) _timer.cancel();
+    if (_timer != null && _timer.isActive) _timer.cancel();
     if (!_controller.isClosed) _controller.close();
     _active.length = 0;
     events.length = 0;
