@@ -12,6 +12,7 @@ void main() {
   test('Schedule.GetSpecialOn', schedule_getSpecialOn);
   test('Schedule.Moment.Values', schedule_moment_values);
   test('Schedule.Single.Values', schedule_single_values);
+  test('Schedule.ToJson', schedule_toJson);
   test('GetTsIndex', test_getTsIndex);
 }
 
@@ -148,6 +149,24 @@ Future<Null> schedule_single_values() async {
       sched.delete();
     }
   }
+}
+
+void schedule_toJson() {
+  var sched = new Schedule('Test Schedule', 100);
+  var expected = <String, dynamic>{
+    'name': 'Test Schedule',
+    'value': 100,
+    'events': []
+  };
+
+  expect(sched.toJson(), equals(expected));
+
+  var tr = new TimeRange.moment(new DateTime(2020, 4, 12, 10));
+  var evt = new Event('Test Event', tr, 42);
+  sched.add(evt);
+
+  expected['events'].add(evt.toJson());
+  expect(sched.toJson(), equals(expected));
 }
 
 void test_getTsIndex() {

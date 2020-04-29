@@ -26,6 +26,13 @@ main(List<String> args) async {
 //  String basePath = Directory.current.path;
 
   link = new LinkProvider(args, "Schedule-", profiles: {
+    // New ones
+    AddSchedule.isType: (String path) => new AddSchedule(path, link),
+    ScheduleNode.isType: (String path) => new ScheduleNode(path, link),
+    DefaultValueNode.isType: (String path) => new DefaultValueNode(path, link),
+    EventsNode.isType: (String path) => new EventsNode(path),
+    AddEventsNode.isType: (String path) => new AddEventsNode(path, link),
+
     AddICalRemoteScheduleNode.isType:
         (String path) => new AddICalRemoteScheduleNode(path, link),
     AddICalLocalScheduleNode.isType:
@@ -52,6 +59,7 @@ main(List<String> args) async {
     TimezoneNode.isType: (String path) => new TimezoneNode(path, link)
   },
       defaultNodes: {
+        AddSchedule.pathName: AddSchedule.def(),
         AddICalRemoteScheduleNode.pathName: AddICalRemoteScheduleNode.def(),
         AddICalLocalScheduleNode.pathName: AddICalLocalScheduleNode.def(),
         HttpPortNode.pathName: HttpPortNode.def()

@@ -4,11 +4,7 @@ import "dart:async";
 import "package:dslink/responder.dart";
 
 dynamic parseInputValue(input) {
-  if (input == null) return null;
-
-  if (input is! String) {
-    return input;
-  }
+  if (input is! String) return input;
 
   var lowerTrimmed = input.trim().toLowerCase();
 
@@ -17,10 +13,7 @@ dynamic parseInputValue(input) {
   }
 
   var number = num.parse(input, (source) => null);
-
-  if (number != null) {
-    return number;
-  }
+  if (number != null) return number;
 
   return input;
 }

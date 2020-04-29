@@ -140,5 +140,5 @@ void test_getPriority() {
   expect(getPriority(a, b).id, equals(b.id));
   expect(getPriority(b, a).id, equals(b.id));
 
-  expect(getPriority(null, null), equals(null));
+  expect(() => getPriority(null, null), throwsArgumentError);
 }
