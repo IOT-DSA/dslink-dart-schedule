@@ -6,6 +6,19 @@ const zeroDur = const Duration();
 /// occur `Daily`, `Weekly`, `Monthly`, or `Yearly`
 enum Frequency {Single, Hourly, Daily, Weekly, Monthly, Yearly}
 
+/// Returns a [Frequency] based on the string input. Returns null if no match.
+Frequency FrequencyFromString(String freq) {
+  switch (freq) {
+    case 'single': return Frequency.Single;
+    case 'hourly': return Frequency.Hourly;
+    case 'daily': return Frequency.Daily;
+    case 'weekly': return Frequency.Weekly;
+    case 'monthly': return Frequency.Monthly;
+    case 'yearly': return Frequency.Yearly;
+    default: return null;
+  }
+}
+
 /// A TimeRange is the period of time over which an [Event] occurs. A TimeRange
 /// may be a single moment, a simple range, or a TimeRange that occurs at a
 /// specific [Frequency]
@@ -57,6 +70,14 @@ class TimeRange {
 
     if (_end.isAfter(eDate)) {
       throw new RangeError('End Date must be after the end of the period for that day.');
+    }
+
+    if (sTime.isAfter(eTime)) {
+      throw new StateError('Start time must be before End time');
+    }
+
+    if (sDate.isAfter(eDate)) {
+      throw new StateError('Start date must be before End date');
     }
 
     switch (frequency) {
