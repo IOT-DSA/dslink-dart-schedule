@@ -322,22 +322,10 @@ class EventsNode extends ScheduleChild {
   static const String _freq = 'frequency';
 
   static Map<String, dynamic> def(Event e) {
-    var freqStr = Frequency
-        .values
-        .map((Frequency f) => f.toString().split(r'.')[1])
-        .join(',');
-    var freqVal = e.timeRange.frequency.toString().split(r'.')[1];
     var map = <String,dynamic>{
       r'$is': isType,
       r'$name': e.name,
       _id: {r'$name': 'ID', r'$type': 'string', r'?value': e.id},
-      _val: {r'$name': 'Value', r'$type': 'dynamic', r'?value': e.value},
-//      _sTime: EventDateTime.def('Start Time', e.timeRange.sTime.toIso8601String()), //{r'$name': 'Start time', r'$type': 'string', r'?value': e.timeRange.sTime.toIso8601String()},
-//      _sDate: {r'$name': 'Start Date', r'$type': 'string', r'?value': e.timeRange.sDate.toIso8601String()},
-//      _eDate: {r'$name': 'End Date', r'$type': 'string', r'?value': e.timeRange.eDate.toIso8601String()},
-      _freq: {r'$name': 'Frequency', r'$type': 'enum[$freqStr]', r'?value': freqVal},
-      _isSpecial: {r'$name': 'Special', r'$type': 'bool', r'?value': e.isSpecial},
-      _priority: {r'$name': 'Priority', r'$type': 'number', r'?value': e.priority},
       RemoveAction.pathName: RemoveAction.def()
     };
 
@@ -372,24 +360,33 @@ class EventsNode extends ScheduleChild {
 
   @override
   void onCreated() {
-    getEvent().then((Event e) {
-      _addEditableDate(_sTime, 'Start Time', e.timeRange.sTime, (DateTime date) {
-        _updateTimeRange(e, sTime: date);
-        _updateEvent(_event);
-      });
-      _addEditableDate(_sDate, 'Start Date', e.timeRange.sDate, (DateTime date) {
-        _updateTimeRange(e, sDate: date);
-        _updateEvent(_event);
-      });
-      _addEditableDate(_eTime, 'End Time', e.timeRange.eTime, (DateTime date) {
-        _updateTimeRange(e, eTime: date);
-        _updateEvent(_event);
-      });
-      _addEditableDate(_sDate, 'End Date', e.timeRange.eDate, (DateTime date) {
-        _updateTimeRange(e, eDate: date);
-        _updateEvent(_event);
-      });
+    getEvent().then(_populateNodes);
+  }
+
+  void _populateNodes(Event e) {
+    _addEditableDate(_sTime, 'Start Time', e.timeRange.sTime, (DateTime date) {
+      _updateTimeRange(e, sTime: date);
+      _updateEvent(_event);
+      _updateDuration();
     });
+    _addEditableDate(_sDate, 'Start Date', e.timeRange.sDate, (DateTime date) {
+      _updateTimeRange(e, sDate: date);
+      _updateEvent(_event);
+    });
+    _addEditableDate(_eTime, 'End Time', e.timeRange.eTime, (DateTime date) {
+      _updateTimeRange(e, eTime: date);
+      _updateEvent(_event);
+      _updateDuration();
+    });
+    _addEditableDate(_eDate, 'End Date', e.timeRange.eDate, (DateTime date) {
+      _updateTimeRange(e, eDate: date);
+      _updateEvent(_event);
+    });
+
+    provider.addNode('$path/$_freq', EventFrequency.def(e.timeRange.frequency));
+    provider.addNode('$path/$_val', EventValue.def(e.value));
+    provider.addNode('$path/$_isSpecial', EventIsSpecial.def(e.isSpecial));
+    provider.addNode('$path/$_priority', EventPriority.def(e.priority));
   }
 
   @override
@@ -400,12 +397,49 @@ class EventsNode extends ScheduleChild {
     sched.removeEvent(name);
   }
 
+  bool updateFrequency(String freq) {
+    var f = FrequencyFromString(freq.toLowerCase());
+    if (f == null) return true; // True to reject value.
+
+    getEvent().then((Event e) {
+      _updateTimeRange(e, freq: f);
+      _updateEvent(e);
+    });
+    return false;
+  }
+
+  bool updateEventVal(Object value) {
+    var sched = getSchedule();
+    sched.updateEventVal(name, value);
+    return false;
+  }
+
+  bool updateSpecial(bool isSpecial) {
+    getEvent().then((Event e) {
+      e.isSpecial = isSpecial;
+      _updateEvent(e);
+    });
+
+    return false;
+  }
+
+  /// Sets the event priority to that specified. Removes and re-adds the event
+  /// to the schedule to ensure appropriate event priorities are managed
+  bool updatePriority(int priority) {
+    getEvent().then((Event e) {
+      e.priority = priority;
+      _updateEvent(e);
+    });
+
+    return false;
+  }
+
   void _updateTimeRange(Event e, {DateTime sTime, DateTime sDate, DateTime eTime,
     DateTime eDate, Frequency freq}) {
     DateTime st = sTime ?? e.timeRange.sTime;
     DateTime sd = sDate ?? e.timeRange.sDate;
     DateTime et = eTime ?? e.timeRange.eTime;
-    DateTime ed = sTime ?? e.timeRange.eDate;
+    DateTime ed = eDate ?? e.timeRange.eDate;
     Frequency f = freq ?? e.timeRange.frequency;
 
     var tr = new TimeRange(st, et, sd, ed, f);
@@ -420,6 +454,12 @@ class EventsNode extends ScheduleChild {
     sched.addEvent(e);
   }
 
+  void _updateDuration() {
+    var durNode = provider.getNode('$path/$_dur');
+    if (durNode == null) return;
+    durNode.updateValue(_event.timeRange.period.inSeconds);
+  }
+
   void _addEditableDate(String path, String name, DateTime value, OnEditDate onEdit) {
     var node = provider.addNode('${this.path}/$path',
         EventDateTime.def(name, value.toIso8601String())) as EventDateTime;
@@ -429,7 +469,7 @@ class EventsNode extends ScheduleChild {
 
 typedef void OnEditDate(DateTime date);
 
-class EventDateTime extends ScheduleChild {
+class EventDateTime extends SimpleNode {
   static const String isType = 'eventDateTime';
 
   static Map<String, dynamic> def(String name, String value) => {
@@ -442,16 +482,132 @@ class EventDateTime extends ScheduleChild {
 
   OnEditDate onEdit;
 
-  EventDateTime(String path) : super(path);
+  EventDateTime(String path) : super(path) {
+    serializable = false;
+  }
 
   @override
   bool onSetValue(Object value) {
-    print('value: $value');
     // Reject a non-string value for datetime.
     if (value is! String) return true;
 
     var date = DateTime.parse(value);
     onEdit(date);
     return false;
+  }
+}
+
+class EventFrequency extends SimpleNode {
+  static const String isType = 'schedule/event/frequency';
+
+  static Map<String, dynamic> def(Frequency freq) {
+    var freqStr = Frequency
+        .values
+        .map((Frequency f) => f.toString().split(r'.')[1])
+        .join(',');
+    var freqVal = freq.toString().split(r'.')[1];
+
+    var m = {
+      r'$is': isType,
+      r'$name': 'Frequency',
+      r'$type': 'enum[$freqStr]', r'?value': freqVal,
+      r'$writable': 'write'
+    };
+    return m;
+  }
+
+  EventFrequency(String path): super(path) {
+    serializable = false;
+  }
+
+  @override
+  bool onSetValue(Object value) {
+    if (value is! String) return true;
+
+    return (parent as EventsNode).updateFrequency(value);
+  }
+}
+
+class EventValue extends SimpleNode {
+  static const String isType = 'schedule/event/value';
+
+  static Map<String, dynamic> def(dynamic value) => {
+    r'$name': 'Value',
+    r'$type': 'dynamic',
+    r'?value': value,
+    r'$writable': 'write'
+  };
+
+  EventValue(String path) : super(path) {
+    serializable = false;
+  }
+
+  @override
+  bool onSetValue(Object value) {
+    // TODO: When updating, this is not changing the "next" value or the "current Value" when appropriate.
+    return (parent as EventsNode).updateEventVal(value);
+  }
+}
+
+class EventIsSpecial extends SimpleNode {
+  static const String isType = 'schedule/event/isSpecial';
+
+  static Map<String, dynamic> def(bool special) => {
+    r'$is': isType,
+    r'$name': 'Special',
+    r'$type': 'bool',
+    r'?value': special,
+    r'$writable': 'write'
+  };
+
+  EventIsSpecial(String path) : super(path) {
+    serializable = false;
+  }
+
+  @override
+  bool onSetValue(Object value) {
+    bool spec;
+    if (value is bool) {
+      spec = value;
+    } else if (value is String) {
+      spec = (value.toLowerCase().trim() == 'true');
+    } else {
+      return true;
+    }
+
+    return (parent as EventsNode).updateSpecial(spec);
+  }
+}
+
+class EventPriority extends SimpleNode {
+  static const String isType = 'schedule/event/priority';
+
+  static Map<String, dynamic> def(int priority) => {
+    r'$is': isType,
+    r'$name': 'Priority',
+    r'$type': 'number',
+    r'$editor': 'int',
+    r'$min': '0',
+    r'$max': '9',
+    r'?value': priority,
+    r'$writable': 'write'
+  };
+
+  EventPriority(String path) : super(path) {
+    serializable = false;
+  }
+
+  @override
+  bool onSetValue(Object value) {
+    num number;
+    if (value is num) {
+      number = value;
+    } else if (value is String) {
+      number = num.parse(value);
+    } else {
+      return true;
+    }
+
+    return (parent as EventsNode).updatePriority(number);
   }
 }

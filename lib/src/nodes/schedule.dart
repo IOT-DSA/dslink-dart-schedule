@@ -59,6 +59,8 @@ class AddSchedule extends SimpleNode {
   }
 }
 
+// TODO: Add Export and Import functionality to Schedules.
+
 class ScheduleNode extends SimpleNode {
   static const String isType = 'scheduleNode';
 
@@ -137,6 +139,8 @@ class ScheduleNode extends SimpleNode {
   void removeEvent(String eventId) {
     var next = schedule.next;
     schedule.remove(eventId);
+    // if the next scheduled event has changed, be sure to update the
+    // appropriate values.
     if (schedule.next != next) _updateNext();
   }
 
@@ -144,6 +148,14 @@ class ScheduleNode extends SimpleNode {
   void setDefaultValue(Object value) {
     schedule.defaultValue = value;
     _link.save();
+  }
+
+  /// Called when [EventValue] is modified
+  void updateEventVal(String id, Object value) {
+    // This is required in the event that event value being updated is the
+    // current event.
+    schedule.updateEventValue(id, value);
+    if (schedule.next.id == id) _updateNext();
   }
 
   @override

@@ -36,6 +36,10 @@ main(List<String> args) async {
     AddRecurringEvents.isType: (String path) => new AddRecurringEvents(path, link),
     RemoveAction.isType: (String path) => new RemoveAction(path),
     EventDateTime.isType: (String path) => new EventDateTime(path),
+    EventFrequency.isType: (String path) => new EventFrequency(path),
+    EventValue.isType: (String path) => new EventValue(path),
+    EventIsSpecial.isType: (String path) => new EventIsSpecial(path),
+    EventPriority.isType: (String path) => new EventPriority(path),
     // DataNodes for the schedule link. Specially requested by Pavel O.
     DataRootNode.isType: (String path) => new DataRootNode(path),
     DataNode.isType: (String path) => new DataNode(path, link),

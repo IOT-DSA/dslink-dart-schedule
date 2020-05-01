@@ -335,6 +335,20 @@ class Schedule {
     return -1;
   }
 
+  /// Update the value for an event. Handled from here that way if an event
+  /// is currently active the new value will be pushed immediately.
+  void updateEventValue(String id, Object value) {
+    var e = events.firstWhere((Event e) => e.id == id, orElse: () => null);
+    if (e == null) {
+      throw new ArgumentError.value(id, 'id',
+          'Unable to locate event with specified ID');
+    }
+
+    e.value = value;
+    if (current == e) {
+      _controller.add(value);
+    }
+  }
 }
 
 /// Get the index into which an event at the specified DateTime dt should be
