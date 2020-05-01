@@ -36,6 +36,12 @@ main(List<String> args) async {
     AddRecurringEvents.isType: (String path) => new AddRecurringEvents(path, link),
     RemoveAction.isType: (String path) => new RemoveAction(path),
     EventDateTime.isType: (String path) => new EventDateTime(path),
+    // DataNodes for the schedule link. Specially requested by Pavel O.
+    DataRootNode.isType: (String path) => new DataRootNode(path),
+    DataNode.isType: (String path) => new DataNode(path, link),
+    DataAddNode.isType: (String path) => new DataAddNode(path, link),
+    DataRemove.isType: (String path) => new DataRemove(path, link),
+    DataAddValue.isType: (String path) => new DataAddValue(path, link),
 
     AddICalRemoteScheduleNode.isType:
         (String path) => new AddICalRemoteScheduleNode(path, link),
@@ -90,6 +96,11 @@ main(List<String> args) async {
   var provider = link.provider as SimpleNodeProvider;
   if (!provider.nodes.containsKey("/${HttpPortNode.pathName}")) {
     link.addNode("/${HttpPortNode.pathName}", HttpPortNode.def());
+  }
+
+  var data = provider.getNode('/${DataRootNode.pathName}');
+  if (data == null) {
+    link.addNode('/${DataRootNode.pathName}', DataRootNode.def());
   }
 
   var portValue = link.val("/${HttpPortNode.pathName}");
