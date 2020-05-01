@@ -58,9 +58,9 @@ class TimeRange {
   /// by default on a daily basis between sDate and eDate (inclusive). Otherwise
   /// frequency may be one of the Frequency enumerated values.
   /// sTime and eTime should be the start and end times of the _first_ window
-  /// of the TimeRange. For instance if this TimeRange represents a period of
-  /// time from 11:00am - 12:00pm (one hour) between July 1st - July 15th 2020
-  /// ```var range = TimeRange(new DateTime(
+  /// of the TimeRange.
+  /// TimeRange internally stores these start and end times rather than using
+  /// a duration, so as to avoid any issues with Daylight Savings Time.
   TimeRange(this.sTime, this.eTime, this.sDate, this.eDate,
       [this.frequency = Frequency.Daily]) {
 
