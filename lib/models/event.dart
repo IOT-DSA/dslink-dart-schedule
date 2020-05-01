@@ -7,6 +7,14 @@ import 'timerange.dart';
 /// also have a specific [priority] or it may be flagged as a special event which
 /// supersedes any other events on that day.
 class Event {
+  // Used in json serialization
+  static const String _name = 'name';
+  static const String _id = 'id';
+  static const String _priority = 'priority';
+  static const String _special = 'special';
+  static const String _value = 'value';
+  static const String _time = 'timeRange';
+
   /// Display name for the event.
   String name;
   /// Internal identifier for the event.
@@ -28,12 +36,17 @@ class Event {
     if (id == null) id = generateId();
   }
 
-  static const String _name = 'name';
-  static const String _id = 'id';
-  static const String _priority = 'priority';
-  static const String _special = 'special';
-  static const String _value = 'value';
-  static const String _time = 'timeRange';
+  /// Update the event's [TimeRange] with the values specified in the provided
+  /// parameter. The values are copied from the parameter rather than replacing
+  /// the existing TimeRange object.
+  void updateTimeRange(TimeRange tr) {
+    timeRange
+        ..sTime = tr.sTime
+        ..sDate = tr.sDate
+        ..eTime = tr.eTime
+        ..eDate = tr.eDate
+        ..frequency = tr.frequency;
+  }
 
   /// Create a new Event from a json map that was previously exported with [toJson]
   factory Event.fromJson(Map<String, dynamic> map) {

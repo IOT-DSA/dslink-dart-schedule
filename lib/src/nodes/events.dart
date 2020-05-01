@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:dslink/dslink.dart';
 
 import 'package:dslink_schedule/schedule.dart';
@@ -330,9 +332,9 @@ class EventsNode extends ScheduleChild {
       r'$name': e.name,
       _id: {r'$name': 'ID', r'$type': 'string', r'?value': e.id},
       _val: {r'$name': 'Value', r'$type': 'dynamic', r'?value': e.value},
-      _sTime: {r'$name': 'Start time', r'$type': 'string', r'?value': e.timeRange.sTime.toIso8601String()},
-      _sDate: {r'$name': 'Start Date', r'$type': 'string', r'?value': e.timeRange.sDate.toIso8601String()},
-      _eDate: {r'$name': 'End Date', r'$type': 'string', r'?value': e.timeRange.eDate.toIso8601String()},
+//      _sTime: EventDateTime.def('Start Time', e.timeRange.sTime.toIso8601String()), //{r'$name': 'Start time', r'$type': 'string', r'?value': e.timeRange.sTime.toIso8601String()},
+//      _sDate: {r'$name': 'Start Date', r'$type': 'string', r'?value': e.timeRange.sDate.toIso8601String()},
+//      _eDate: {r'$name': 'End Date', r'$type': 'string', r'?value': e.timeRange.eDate.toIso8601String()},
       _freq: {r'$name': 'Frequency', r'$type': 'enum[$freqStr]', r'?value': freqVal},
       _isSpecial: {r'$name': 'Special', r'$type': 'bool', r'?value': e.isSpecial},
       _priority: {r'$name': 'Priority', r'$type': 'number', r'?value': e.priority},
@@ -351,10 +353,43 @@ class EventsNode extends ScheduleChild {
     return map;
   }
 
-  Event event;
+  Event _event;
+  Completer<Event> _comp;
+  void set event(Event e) {
+    _event = e;
+    if (!_comp.isCompleted) _comp.complete(e);
+  }
+
+  Future<Event> getEvent() async {
+    if (_event != null) return _event;
+    return _comp.future;
+  }
 
   EventsNode(String path) : super(path) {
+    _comp = new Completer<Event>();
     serializable = false;
+  }
+
+  @override
+  void onCreated() {
+    getEvent().then((Event e) {
+      _addEditableDate(_sTime, 'Start Time', e.timeRange.sTime, (DateTime date) {
+        _updateTimeRange(e, sTime: date);
+        _updateEvent(_event);
+      });
+      _addEditableDate(_sDate, 'Start Date', e.timeRange.sDate, (DateTime date) {
+        _updateTimeRange(e, sDate: date);
+        _updateEvent(_event);
+      });
+      _addEditableDate(_eTime, 'End Time', e.timeRange.eTime, (DateTime date) {
+        _updateTimeRange(e, eTime: date);
+        _updateEvent(_event);
+      });
+      _addEditableDate(_sDate, 'End Date', e.timeRange.eDate, (DateTime date) {
+        _updateTimeRange(e, eDate: date);
+        _updateEvent(_event);
+      });
+    });
   }
 
   @override
@@ -363,5 +398,60 @@ class EventsNode extends ScheduleChild {
     if (sched == null) return;
 
     sched.removeEvent(name);
+  }
+
+  void _updateTimeRange(Event e, {DateTime sTime, DateTime sDate, DateTime eTime,
+    DateTime eDate, Frequency freq}) {
+    DateTime st = sTime ?? e.timeRange.sTime;
+    DateTime sd = sDate ?? e.timeRange.sDate;
+    DateTime et = eTime ?? e.timeRange.eTime;
+    DateTime ed = sTime ?? e.timeRange.eDate;
+    Frequency f = freq ?? e.timeRange.frequency;
+
+    var tr = new TimeRange(st, et, sd, ed, f);
+    e.updateTimeRange(tr);
+  }
+
+  void _updateEvent(Event e) {
+    // Remove and re-add event if we've updated it, as this may change it's
+    // next timestamp or even priority.
+    var sched = getSchedule();
+    sched.removeEvent(e.id);
+    sched.addEvent(e);
+  }
+
+  void _addEditableDate(String path, String name, DateTime value, OnEditDate onEdit) {
+    var node = provider.addNode('${this.path}/$path',
+        EventDateTime.def(name, value.toIso8601String())) as EventDateTime;
+    node.onEdit = onEdit;
+  }
+}
+
+typedef void OnEditDate(DateTime date);
+
+class EventDateTime extends ScheduleChild {
+  static const String isType = 'eventDateTime';
+
+  static Map<String, dynamic> def(String name, String value) => {
+    r'$is': isType,
+    r'$name': name,
+    r'$writable': 'write',
+    r'$type': 'string',
+    r'?value': value
+  };
+
+  OnEditDate onEdit;
+
+  EventDateTime(String path) : super(path);
+
+  @override
+  bool onSetValue(Object value) {
+    print('value: $value');
+    // Reject a non-string value for datetime.
+    if (value is! String) return true;
+
+    var date = DateTime.parse(value);
+    onEdit(date);
+    return false;
   }
 }

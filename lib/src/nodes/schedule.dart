@@ -66,10 +66,8 @@ class ScheduleNode extends SimpleNode {
   static const String _next = 'next';
   static const String _next_ts = 'next_ts';
   static const String _stc = 'stc';
-  static const String _remove = 'remove';
   static const String _events = 'events';
   static const String _schedule = r'$schedule';
-  static const String _def = 'defaultValue';
 
   static Map<String, dynamic> def(Schedule sched) => {
       r'$name': sched.name,
@@ -112,6 +110,7 @@ class ScheduleNode extends SimpleNode {
       var en = provider.addNode('$path/$_events/${e.id}', EventsNode.def(e)) as EventsNode;
       en.event = e;
     }
+
     provider.addNode('$path/${DefaultValueNode.pathName}',
         DefaultValueNode.def(schedule.defaultValue));
 
@@ -144,6 +143,7 @@ class ScheduleNode extends SimpleNode {
   /// Called by the [DefaultValueNode] in onSetValue.
   void setDefaultValue(Object value) {
     schedule.defaultValue = value;
+    _link.save();
   }
 
   @override
@@ -222,14 +222,14 @@ class DefaultValueNode extends ScheduleChild {
   static const String isType = 'defaultValueNode';
 
   static Map<String, dynamic> def(Object value) => {
+    r'$is': isType,
     r'$name': 'Default Value',
     r'$type': 'dynamic',
     r'$writable': 'write',
     r'?value': value
   };
 
-  final LinkProvider _link;
-  DefaultValueNode(String path, this._link) : super(path) {
+  DefaultValueNode(String path) : super(path) {
     serializable = false;
   }
 
@@ -238,7 +238,6 @@ class DefaultValueNode extends ScheduleChild {
   bool onSetValue(Object value) {
     var schedNode = getSchedule();
     schedNode.setDefaultValue(parseInputValue(value));
-    _link.save();
 
     return false; // False to accept value. ¯\_(ツ)_/¯
   }

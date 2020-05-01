@@ -11,7 +11,13 @@ class Schedule {
   /// Internal reference name for the schedule.
   String name;
   /// The schedule will provide this Event when no event is active.
-  Object defaultValue;
+  void set defaultValue(Object value) {
+    _defaultValue = value;
+    // Send notification of change of defaultValue
+    if (current == null) _controller.add(value);
+  }
+  Object get defaultValue => _defaultValue;
+  Object _defaultValue;
   /// List of events that make up the schedule.
   List<Event> events;
   /// The event that is currently active.
@@ -22,7 +28,7 @@ class Schedule {
   /// time.
   Stream<Object> get values => _controller.stream;
 
-  Object get currentValue => current != null ? current.value : defaultValue;
+  Object get currentValue => current != null ? current.value : _defaultValue;
 
   // These are used for to/from json encoding
   static const String _name = 'name';
@@ -37,7 +43,7 @@ class Schedule {
   bool _hasChanged = false;
 
   /// Create a new schedule with the specified name, and specified defaultValue.
-  Schedule(this.name, this.defaultValue) {
+  Schedule(this.name, this._defaultValue) {
     events = new List<Event>();
     _active = new List<Event>();
     _controller = new StreamController.broadcast(onListen: _onListen);
@@ -46,7 +52,7 @@ class Schedule {
   /// Create a new Schedule from a json map of a previously exported scheduled.
   Schedule.fromJson(Map<String, dynamic> map) {
     name = map[_name];
-    defaultValue = map[_value];
+    _defaultValue = map[_value];
     var eList = map[_events] as List<Map>;
 
     events = new List<Event>();
