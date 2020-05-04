@@ -6,8 +6,6 @@ import "package:dslink/utils.dart";
 
 import "utils.dart";
 
-import 'src/nodes/event.dart';
-
 abstract class CalendarProvider {
   ValueAtTime next(ValueCalendarState state);
   ValueAtTime current(ValueCalendarState state);

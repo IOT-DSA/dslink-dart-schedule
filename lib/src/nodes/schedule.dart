@@ -155,7 +155,7 @@ class ScheduleNode extends SimpleNode {
     // This is required in the event that event value being updated is the
     // current event.
     schedule.updateEventValue(id, value);
-    if (schedule.next.id == id) _updateNext();
+    if (schedule.next?.id == id) _updateNext();
   }
 
   @override

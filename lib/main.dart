@@ -35,6 +35,7 @@ main(List<String> args) async {
     AddMomentEvent.isType: (String path) => new AddMomentEvent(path, link),
     AddRecurringEvents.isType: (String path) => new AddRecurringEvents(path, link),
     RemoveAction.isType: (String path) => new RemoveAction(path),
+    EditEvent.isType: (String path) => new EditEvent(path, link),
     EventDateTime.isType: (String path) => new EventDateTime(path),
     EventFrequency.isType: (String path) => new EventFrequency(path),
     EventValue.isType: (String path) => new EventValue(path),
@@ -105,6 +106,11 @@ main(List<String> args) async {
   var data = provider.getNode('/${DataRootNode.pathName}');
   if (data == null) {
     link.addNode('/${DataRootNode.pathName}', DataRootNode.def());
+  }
+
+  var addSched = provider.getNode('/${AddSchedule.pathName}');
+  if (addSched == null) {
+    link.addNode('/${AddSchedule.pathName}', AddSchedule.def());
   }
 
   var portValue = link.val("/${HttpPortNode.pathName}");

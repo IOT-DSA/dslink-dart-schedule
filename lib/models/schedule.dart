@@ -345,7 +345,7 @@ class Schedule {
     }
 
     e.value = value;
-    if (current == e) {
+    if (current?.id == e.id) {
       _controller.add(value);
     }
   }

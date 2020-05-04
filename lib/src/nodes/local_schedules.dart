@@ -11,7 +11,6 @@ import 'package:dslink/utils.dart';
 import 'package:dslink_schedule/utils.dart';
 import 'package:dslink_schedule/calendar.dart';
 import "package:dslink_schedule/ical.dart" as ical;
-import 'package:dslink_schedule/utils.dart';
 
 import 'timezone.dart';
 import 'event.dart';

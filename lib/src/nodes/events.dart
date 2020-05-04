@@ -387,6 +387,7 @@ class EventsNode extends ScheduleChild {
     provider.addNode('$path/$_val', EventValue.def(e.value));
     provider.addNode('$path/$_isSpecial', EventIsSpecial.def(e.isSpecial));
     provider.addNode('$path/$_priority', EventPriority.def(e.priority));
+    provider.addNode('$path/${EditEvent.pathName}', EditEvent.def(e));
   }
 
   @override
@@ -434,6 +435,30 @@ class EventsNode extends ScheduleChild {
     return false;
   }
 
+  void editEvent(Event e) {
+    _updateEvent(e);
+    displayName = e.name;
+    _updateValues(_priority, e.priority);
+    _updateValues(_isSpecial, e.isSpecial);
+    _updateValues(_val, value);
+    _updateValues(_sTime, e.timeRange.sTime.toIso8601String());
+    _updateValues(_eTime, e.timeRange.eTime.toIso8601String());
+    _updateValues(_sDate, e.timeRange.sDate.toIso8601String());
+    _updateValues(_eDate, e.timeRange.eDate.toIso8601String());
+    var freq = e.timeRange.frequency.toString().split(r'.')[1];
+    _updateValues(_freq, freq);
+    if (e.timeRange.period > new Duration(seconds: 1)) {
+      _updateValues(_dur, e.timeRange.period.inSeconds);
+    }
+
+    RemoveNode(provider, children[EditEvent.pathName]);
+    provider.addNode('$path/${EditEvent.pathName}', EditEvent.def(e));
+  }
+
+  void _updateValues(String node, Object value) {
+    (children[node] as SimpleNode).updateValue(value);
+  }
+
   void _updateTimeRange(Event e, {DateTime sTime, DateTime sDate, DateTime eTime,
     DateTime eDate, Frequency freq}) {
     DateTime st = sTime ?? e.timeRange.sTime;
@@ -464,6 +489,153 @@ class EventsNode extends ScheduleChild {
     var node = provider.addNode('${this.path}/$path',
         EventDateTime.def(name, value.toIso8601String())) as EventDateTime;
     node.onEdit = onEdit;
+  }
+}
+
+class EditEvent extends ScheduleChild {
+  static const String isType = 'schedule/event/edit';
+  static const String pathName = 'edit_event';
+
+  static const String _name = 'name';
+  static const String _dateRange = 'dateRange';
+  static const String _timeRange = 'timeRange';
+  static const String _freq = 'frequency';
+  static const String _priority = 'priority';
+  static const String _isSpecial = 'isSpecial';
+  static const String _value = 'value';
+
+  static Map<String, dynamic> def(Event e) {
+    var sdate = e.timeRange.sDate.toIso8601String();
+    var edate = e.timeRange.eDate.toIso8601String();
+    var stime = e.timeRange.sTime.toIso8601String();
+    var etime = e.timeRange.eTime.toIso8601String();
+
+    var freq = e.timeRange.frequency.toString().split('.')[1];
+
+    return <String,dynamic>{
+      r'$name': 'Edit Event',
+      r'$is': isType,
+      r'$params': [
+        {
+          'name': _name,
+          'type': 'string',
+          'default': e.name,
+          'description': 'Identifiable name for the event.'
+        },
+        {
+          'name': _value,
+          'type': 'dynamic',
+          'default': e.value,
+          'description': 'Value when event is triggered'
+        },
+        {
+          'name': _dateRange,
+          'type': 'string',
+          'editor': 'daterange',
+          'default': '$sdate/$edate',
+          'description': 'Start and end date range of the event.'
+        },
+        {
+          'name': _timeRange,
+          'type': 'string',
+          'editor': 'daterange',
+          'default': '$stime/$etime',
+          'description': 'Start and end times of the event. Only the time the event is "active"'
+        },
+        {
+          'name': _freq,
+          'type': 'enum[Single,Hourly,Daily,Weekly,Monthly,Yearly]',
+          'default': freq,
+          'description': 'Frequency the event occurs.'
+        },
+        {
+          'name': _isSpecial,
+          'type': 'bool',
+          'default': e.isSpecial,
+          'description': 'Flag indicating if this is considered a special event'
+        },
+        {
+          'name': _priority,
+          'type': 'number',
+          'editor': 'int',
+          'min': 0,
+          'max': 9,
+          'default': e.priority,
+          'description': 'Event priority. 0 is none specified; 1 is highest; 9 is lowest.'
+        }
+      ],
+      r'$invokable': 'write'
+    };
+  }
+
+  final LinkProvider _link;
+  EditEvent(String path, this._link) : super(path) {
+    serializable = false;
+  }
+
+  @override
+  Future onInvoke(Map<String, dynamic> params) async {
+    var schedNode = getSchedule();
+    var existing = await (parent as EventsNode).getEvent();
+    var name = _checkName(params[_name], existing, schedNode.schedule);
+
+    var dates = _checkDates(params[_dateRange]);
+    var times = _checkDates(params[_timeRange]);
+    var freq = _checkFreq(params[_freq]);
+    var val = parseInputValue(params[_value]);
+    var spec = params[_isSpecial];
+    var pri = params[_priority];
+
+    // Get event window duration
+    var dur = times[1].difference(times[0]);
+    var startDate = new DateTime(dates[0].year, dates[0].month, dates[0].day,
+        times[0].hour, times[0].minute, times[0].second, times[0].millisecond);
+    var endDate = new DateTime(dates[1].year, dates[1].month, dates[1].day,
+        times[1].hour, times[1].minute, times[1].second, times[1].millisecond);
+    var startTime = startDate;
+    var endTime = startTime.add(dur);
+    var tr = new TimeRange(startTime, endTime, startDate, endDate, freq);
+    var evnt = new Event(name, tr, val, isSpecial: spec, priority: pri, id: existing.id);
+
+    (parent as EventsNode).editEvent(evnt);
+    _link.save();
+  }
+
+  String _checkName(String name, Event existing, Schedule sched) {
+    if (name == existing.name) return name;
+
+    if (name == null || name.trim().isEmpty) {
+      throw new ArgumentError.value(name, _name, 'value cannot be empty.');
+    }
+
+    if (sched.events.any((Event e) => e.name == name && e.id != existing.id)) {
+      throw new ArgumentError.value(name, _name, 'an event by that name already exists');
+    }
+
+    return name;
+  }
+
+  List<DateTime> _checkDates(String dates) {
+    List<DateTime> res = new List<DateTime>(2);
+
+    if (!dates.contains(r'/')) {
+      throw new ArgumentError.value(dates, _dateRange,
+          'Unexpected date range. Should be in the format <startDate>/<endDate>');
+    }
+
+    var ds = dates.split(r'/');
+    res[0] = DateTime.parse(ds[0]).toLocal();
+    res[1] = DateTime.parse(ds[1]).toLocal();
+    return res;
+  }
+
+  Frequency _checkFreq(String freq) {
+    var f = FrequencyFromString(freq.toLowerCase());
+    if (f == null) {
+      throw new ArgumentError.value(freq, _freq, 'invalid frequency interval');
+    }
+
+    return f;
   }
 }
 
@@ -532,6 +704,7 @@ class EventValue extends SimpleNode {
   static const String isType = 'schedule/event/value';
 
   static Map<String, dynamic> def(dynamic value) => {
+    r'$is': isType,
     r'$name': 'Value',
     r'$type': 'dynamic',
     r'?value': value,
@@ -544,7 +717,6 @@ class EventValue extends SimpleNode {
 
   @override
   bool onSetValue(Object value) {
-    // TODO: When updating, this is not changing the "next" value or the "current Value" when appropriate.
     return (parent as EventsNode).updateEventVal(value);
   }
 }
