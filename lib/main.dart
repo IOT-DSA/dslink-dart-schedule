@@ -47,6 +47,7 @@ main(List<String> args) async {
     DataAddNode.isType: (String path) => new DataAddNode(path, link),
     DataRemove.isType: (String path) => new DataRemove(path, link),
     DataAddValue.isType: (String path) => new DataAddValue(path, link),
+    DataPublish.isType: (String path) => new DataPublish(path, link),
 
     AddICalRemoteScheduleNode.isType:
         (String path) => new AddICalRemoteScheduleNode(path, link),
