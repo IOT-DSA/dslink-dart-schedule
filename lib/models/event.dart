@@ -52,8 +52,8 @@ class Event {
   factory Event.fromJson(Map<String, dynamic> map) {
     String name = map[_name];
     String id = map[_id];
-    int priority = map[_priority];
-    bool special = map[_special];
+    int priority = map[_priority] ?? 0;
+    bool special = map[_special] ?? false;
     Object value = map[_value];
     TimeRange tr = new TimeRange.fromJson(map[_time]);
 

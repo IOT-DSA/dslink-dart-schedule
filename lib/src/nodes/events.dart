@@ -70,8 +70,8 @@ class AddSingleEvent extends ScheduleChild {
     }
 
     var val = parseInputValue(params[_value]);
-    var spec = params[_isSpecial];
-    var pri = params[_priority];
+    var spec = params[_isSpecial] ?? false;
+    var pri = params[_priority] ?? 0;
     var dateStr = params[_dateRange] as String;
     if (!dateStr.contains(r'/')) {
       throw new ArgumentError.value(dateStr, _dateRange,
@@ -157,8 +157,8 @@ class AddMomentEvent extends ScheduleChild {
     }
 
     var val = parseInputValue(params[_value]);
-    var spec = params[_isSpecial];
-    var pri = params[_priority];
+    var spec = params[_isSpecial] ?? false;
+    var pri = params[_priority] ?? 0;
     var dates = params[_date] as String;
     String dateStr;
     if (dates.contains(r'/')) {
@@ -291,8 +291,8 @@ class AddRecurringEvents extends ScheduleChild {
     var tr = new TimeRange(startTime, endTime, startDate, endDate, freq);
 
     var val = parseInputValue(params[_value]);
-    var spec = params[_isSpecial];
-    var pri = params[_priority];
+    var spec = params[_isSpecial] ?? false;
+    var pri = params[_priority] ?? 0;
     
     var evnt = new Event(name, tr, val, isSpecial: spec, priority: pri);
     sched.addEvent(evnt);
