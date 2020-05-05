@@ -186,6 +186,7 @@ class DataPublish extends SimpleNode {
   static const String _path = 'Path';
   static const String _value = 'Value';
   static const String _type = 'Type';
+  static const String _force = 'Force';
 
   static const List<String> _valueTypes =
   const <String>['string', 'number', 'bool', 'array', 'map', 'dynamic'];
@@ -197,7 +198,14 @@ class DataPublish extends SimpleNode {
       r'$params': [
         { 'name': _path, 'type': 'string', 'placeholder': '/data/path/to/value'},
         {'name': _value, 'type': 'dynamic', 'placeholder': 'Value'},
-        {'name': _type, 'type': 'enum[${_valueTypes.join(',')}]', 'default': 'string'}
+        {'name': _type, 'type': 'enum[${_valueTypes.join(',')}]', 'default': 'string'},
+        {
+          'name': _force,
+          'type': 'bool',
+          'default': false,
+          'description': 'Force the published value, even if the node exists ' +
+                          'and there is a type mismatch.'
+        }
       ],
   };
 
@@ -207,6 +215,9 @@ class DataPublish extends SimpleNode {
   @override
   void onInvoke(Map<String, dynamic> params) {
     var pPath = params[_path] as String;
+    var force = (params[_force] as bool) ?? false;
+    var ty = params[_type] as String;
+    var value = params[_value];
 
     if (pPath == null || pPath.isEmpty || !pPath.startsWith('/data/')) {
       throw new ArgumentError.value(path, _path,
@@ -214,15 +225,24 @@ class DataPublish extends SimpleNode {
     }
 
     var pp = new Path(pPath.substring('/data/'.length));
-    var newNode = provider.getNode('${parent.path}/${pp.path}');
+    var newNode = provider.getNode('${parent.path}/${pp.path}') as DataNode;
     if (newNode != null) {
-      throw new ArgumentError.value(pPath, _path, 'A node with that path already exists');
+      if (newNode.configs[r'$type'] != ty) {
+        if (!force) {
+          throw new ArgumentError.value(ty, _type,
+              'type mismatch. Cannot update value');
+        }
+
+        // Force value by first updating the type, then the value
+        newNode.configs[r'$type'] = ty;
+        newNode.updateList(r'$type');
+      }
+      // Value exists, type matches. Update value
+      newNode.updateValue(value);
+      return;
     }
 
     _createPath(pp.parent);
-    var ty = params[_type] as String;
-    var value = params[_value];
-
     var p = '${parent.path}/${pp.path}';
 
     switch (_valueTypes.indexOf(ty)) {
