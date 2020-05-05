@@ -117,6 +117,22 @@ class Schedule {
     if (evnt == next) getNextTs();
   }
 
+  /// Replaces the event in the schedule with an updated version then forces
+  /// the schedule to recalculate. This is a shortcut to prevent removing then
+  /// re-adding the same event. Allows the schedule update to be done in once
+  /// rather than twice.
+  void replaceEvent(Event e) {
+    var ind = 0;
+    for (; ind < events.length; ind++) {
+      if (events[ind].id == e.id) break;
+    }
+
+    if (ind == events.length) return;
+    var evnt = events.removeAt(ind);
+    _active.remove(evnt);
+    add(e);
+  }
+
   /// Makes the passed Event e, the current event, it will also try to calculate
   /// the next event and queue it up.
   void _setCurrent(Event e) {

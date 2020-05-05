@@ -144,6 +144,14 @@ class ScheduleNode extends SimpleNode {
     if (schedule.next != next) _updateNext();
   }
 
+  /// Called when an event needs to be removed and re-added back into the schedule
+  /// This should help to improve efficiency somewhat.
+  void replaceEvent(Event event) {
+    var next = schedule.next;
+    schedule.replaceEvent(event);
+    if (schedule.next != next) _updateNext();
+  }
+
   /// Called by the [DefaultValueNode] in onSetValue.
   void setDefaultValue(Object value) {
     schedule.defaultValue = value;

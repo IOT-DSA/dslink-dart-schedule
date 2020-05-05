@@ -366,21 +366,21 @@ class EventsNode extends ScheduleChild {
   void _populateNodes(Event e) {
     _addEditableDate(_sTime, 'Start Time', e.timeRange.sTime, (DateTime date) {
       _updateTimeRange(e, sTime: date);
-      _updateEvent(_event);
+      _updateSchedule(_event);
       _updateDuration();
     });
     _addEditableDate(_sDate, 'Start Date', e.timeRange.sDate, (DateTime date) {
       _updateTimeRange(e, sDate: date);
-      _updateEvent(_event);
+      _updateSchedule(_event);
     });
     _addEditableDate(_eTime, 'End Time', e.timeRange.eTime, (DateTime date) {
       _updateTimeRange(e, eTime: date);
-      _updateEvent(_event);
+      _updateSchedule(_event);
       _updateDuration();
     });
     _addEditableDate(_eDate, 'End Date', e.timeRange.eDate, (DateTime date) {
       _updateTimeRange(e, eDate: date);
-      _updateEvent(_event);
+      _updateSchedule(_event);
     });
 
     provider.addNode('$path/$_freq', EventFrequency.def(e.timeRange.frequency));
@@ -404,7 +404,7 @@ class EventsNode extends ScheduleChild {
 
     getEvent().then((Event e) {
       _updateTimeRange(e, freq: f);
-      _updateEvent(e);
+      _updateSchedule(e);
     });
     return false;
   }
@@ -418,7 +418,7 @@ class EventsNode extends ScheduleChild {
   bool updateSpecial(bool isSpecial) {
     getEvent().then((Event e) {
       e.isSpecial = isSpecial;
-      _updateEvent(e);
+      _updateSchedule(e);
     });
 
     return false;
@@ -429,18 +429,18 @@ class EventsNode extends ScheduleChild {
   bool updatePriority(int priority) {
     getEvent().then((Event e) {
       e.priority = priority;
-      _updateEvent(e);
+      _updateSchedule(e);
     });
 
     return false;
   }
 
   void editEvent(Event e) {
-    _updateEvent(e);
+    _updateSchedule(e);
     displayName = e.name;
     _updateValues(_priority, e.priority);
     _updateValues(_isSpecial, e.isSpecial);
-    _updateValues(_val, value);
+    _updateValues(_val, e.value);
     _updateValues(_sTime, e.timeRange.sTime.toIso8601String());
     _updateValues(_eTime, e.timeRange.eTime.toIso8601String());
     _updateValues(_sDate, e.timeRange.sDate.toIso8601String());
@@ -471,12 +471,13 @@ class EventsNode extends ScheduleChild {
     e.updateTimeRange(tr);
   }
 
-  void _updateEvent(Event e) {
+  /// Remove and re-add the event to the schedule, forcing the schedule to be
+  /// recalculated.
+  void _updateSchedule(Event e) {
     // Remove and re-add event if we've updated it, as this may change it's
     // next timestamp or even priority.
     var sched = getSchedule();
-    sched.removeEvent(e.id);
-    sched.addEvent(e);
+    sched.replaceEvent(e);
   }
 
   void _updateDuration() {
