@@ -121,10 +121,16 @@ class Schedule {
   /// the schedule to recalculate. This is a shortcut to prevent removing then
   /// re-adding the same event. Allows the schedule update to be done in once
   /// rather than twice.
-  void replaceEvent(Event e) {
+  /// Optionally specify the at parameter if the index in events is already known
+  void replaceEvent(Event e, [int at = -1]) {
     var ind = 0;
-    for (; ind < events.length; ind++) {
-      if (events[ind].id == e.id) break;
+    // Don't have an index.
+    if (at == -1) {
+      for (; ind < events.length; ind++) {
+        if (events[ind].id == e.id) break;
+      }
+    } else {
+      ind = at;
     }
 
     if (ind == events.length) return;

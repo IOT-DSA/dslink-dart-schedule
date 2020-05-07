@@ -226,9 +226,9 @@ class DataPublish extends SimpleNode {
 
     var pp = new Path(pPath.substring('/data/'.length));
     var newNode = provider.getNode('${parent.path}/${pp.path}') as DataNode;
-    if (newNode != null) {
-      if (newNode.configs[r'$type'] != ty) {
-        if (!force) {
+    if (newNode != null) { // Already exists
+      if (newNode.configs[r'$type'] != ty) { // But different types
+        if (!force) { // And not forced, so error.
           throw new ArgumentError.value(ty, _type,
               'type mismatch. Cannot update value');
         }

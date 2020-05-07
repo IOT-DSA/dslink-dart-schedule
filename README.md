@@ -114,3 +114,15 @@ Each event may have a priority. By default an event has a priority `0` which ind
 Following that: `1` is considered the highest priority and `9` is considered the lowest priority. A special event will
 always take precedence over a priority 1, even if the special event has a priority of 9. However special events of
 different priorities should follow expected behaviours.
+
+## Import/Export
+
+The export action on schedules will provide a JSON serialized representation of the schedule and its associated events.
+
+Import will attempt to add the JSON string as a schedule. If a schedule exists by that name, it will attempt to update
+that schedule instead. If the schedule does not exist, or you supply an alternative name, it will add as either a new
+schedule or update the alternative name provided.
+By default, the update will __not__ overwrite any existing events (as matched by Event ID). When overwrite is false,
+any conflicts will be discarded and if the defaultValue has changed, it will not be updated. Only new events will be 
+added. If overwrite is set to true, the defaultValue will be updated and any events with a matching ID will be 
+overwritten with the imported version.
