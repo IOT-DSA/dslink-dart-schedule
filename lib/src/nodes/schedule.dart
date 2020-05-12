@@ -60,8 +60,6 @@ class AddSchedule extends SimpleNode {
   }
 }
 
-// TODO: Add Export and Import functionality to Schedules.
-
 class ScheduleNode extends SimpleNode {
   static const String isType = 'scheduleNode';
 
@@ -187,9 +185,11 @@ class ScheduleNode extends SimpleNode {
       // Safe to add
       if (ind == -1) {
         schedule.add(e);
+        _addEventNode(e);
       } else if (overwrite) {
         // Has an existing index. Replace if overwrite.
         schedule.replaceEvent(e, ind);
+        _addEventNode(e);
       }
     }
   }
@@ -200,6 +200,18 @@ class ScheduleNode extends SimpleNode {
     }
 
     return -1;
+  }
+
+  void _addEventNode(Event e) {
+    var p = '$path/$_events/${e.id}';
+    var en = provider.getNode(p) as EventsNode;
+    if (en == null) {
+      var en = provider.addNode(
+          '$path/$_events/${e.id}', EventsNode.def(e)) as EventsNode;
+      en.event = e;
+    } else {
+      en.updateEvent(e);
+    }
   }
 
   @override

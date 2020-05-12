@@ -437,6 +437,10 @@ class EventsNode extends ScheduleChild {
 
   void editEvent(Event e) {
     _updateSchedule(e);
+    updateEvent(e);
+  }
+
+  void updateEvent(Event e) {
     displayName = e.name;
     _updateValues(_priority, e.priority);
     _updateValues(_isSpecial, e.isSpecial);
