@@ -97,7 +97,8 @@ class ICalendarLocalSchedule extends SimpleNode {
           AddLocalEventNode.pathName: AddLocalEventNode.def(),
           AddSpecialEventNode.pathName: AddSpecialEventNode.def(),
           FetchSpecialEventsNode.pathName: FetchSpecialEventsNode.def(),
-          RemoveSpecialEventNode.pathName: RemoveSpecialEventNode.def()
+          RemoveSpecialEventNode.pathName: RemoveSpecialEventNode.def(),
+          SetDefaultNode.pathName: SetDefaultNode.def()
         },
         FetchEventsNode.pathName: FetchEventsNode.def()
       };
@@ -305,6 +306,7 @@ class ICalendarLocalSchedule extends SimpleNode {
     _addMissing('$path/$_remove',
         {r"$name": "Remove", r"$invokable": "write", r"$is": _remove});
     _addMissing('$path/${FetchEventsNode.pathName}', FetchEventsNode.def());
+    _addMissing('$path/${SetDefaultNode.pathName}', SetDefaultNode.def());
     _addMissing('$path/$_events', {
       r"$name": "Events",
       AddLocalEventNode.pathName: AddLocalEventNode.def(),
@@ -577,6 +579,37 @@ class ICalendarLocalSchedule extends SimpleNode {
   String calculateTag() {
     var json = const JsonEncoder().convert(storedEvents);
     return sha256.convert(const Utf8Encoder().convert(json)).toString();
+  }
+}
+
+class SetDefaultNode extends SimpleNode {
+  static const String isType = 'setDefaultValue';
+  static const String pathName = 'Set_Default';
+
+  static const String _value = 'Value';
+  static const String _default = '@defaultValue';
+
+  static Map<String, dynamic> def() => {
+    r'$is': isType,
+    r'$name': 'Set Default Value',
+    r'$params': [{'name': _value, 'type':'dynamic', 'placeholder': 'value'}],
+    r'$invokable': 'write'
+  };
+
+  final LinkProvider _link;
+
+  SetDefaultNode(String path, this._link) : super(path);
+
+  Future onInvoke(Map<String, dynamic> params) async {
+    var p = parent as ICalendarLocalSchedule;
+
+    // Can't just updateValue on an attribute. And can't rely on onSetAttribute
+    // being triggered, as most attributes are stored at Broker and not DSLink
+    // level, the link doesn't get the updated value.
+    p.attributes[_default] = params[_value];
+    p.updateList(_default);
+    await p.loadSchedule();
+    _link.save();
   }
 }
 

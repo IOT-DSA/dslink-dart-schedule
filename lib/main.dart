@@ -49,7 +49,8 @@ main(List<String> args) async {
         (String path) => new FetchSpecialEventsNode(path),
     RemoveSpecialEventNode.isType:
         (String path) => new RemoveSpecialEventNode(path, link),
-    TimezoneNode.isType: (String path) => new TimezoneNode(path, link)
+    TimezoneNode.isType: (String path) => new TimezoneNode(path, link),
+    SetDefaultNode.isType: (String path) => new SetDefaultNode(path, link)
   },
       defaultNodes: {
         AddICalRemoteScheduleNode.pathName: AddICalRemoteScheduleNode.def(),
