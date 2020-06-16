@@ -452,16 +452,15 @@ class ICalendarLocalSchedule extends SimpleNode {
 
       var setNextEvent = (ValueAtTime v) {
         // Could fire before nodes are initialized on startup.
-        if (provider == null) return;
-        provider.updateValue("${path}/$_current", v.value);
+        provider?.updateValue("${path}/$_current", v.value);
         next = state.getNext();
         if (next != null) {
-          provider.updateValue("${path}/$_next", next.value);
-          provider.updateValue("${path}/$_next_ts", next.time.toIso8601String());
+          provider?.updateValue("${path}/$_next", next.value);
+          provider?.updateValue("${path}/$_next_ts", next.time.toIso8601String());
           nextTimestamp = next.time;
         } else {
-          provider.updateValue("${path}/$_next", null);
-          provider.updateValue("${path}/$_next_ts", null);
+          provider?.updateValue("${path}/$_next", null);
+          provider?.updateValue("${path}/$_next_ts", null);
           nextTimestamp = null;
         }
       };
